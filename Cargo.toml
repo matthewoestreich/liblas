@@ -1,0 +1,15 @@
+[package]
+name = "liblas"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[[bin]]
+name = "las2json"
+path = "bin/main.rs"
+
+[lib]
+name = "liblas"
+path = "src/lib.rs"
+crate-type = ["rlib"]
