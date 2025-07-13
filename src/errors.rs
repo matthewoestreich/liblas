@@ -4,21 +4,22 @@ use std::{
 };
 
 #[derive(Debug)]
-pub enum LasioError {
+pub enum LibLasError {
   UnknownSection(String),
   MissingRequiredMnemonicField(String),
   MissingRequiredDelimeter(String),
   UnableToParseDataValue(String),
   DuplicateSectionFound(String),
   ReadingNextLine,
-  MissingData,
+  MissingData(String),
+  MalformedAsciiData(String),
 }
 
-impl Error for LasioError {}
+impl Error for LibLasError {}
 
-impl Display for LasioError {
+impl Display for LibLasError {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-    use LasioError::*;
+    use LibLasError::*;
     match self {
       UnknownSection(section) => write!(f, "Unknown section encountered! '{section}'"),
       MissingRequiredDelimeter(delimeter) => write!(f, "Missing required delimeter! '{delimeter}'"),
@@ -30,7 +31,8 @@ impl Display for LasioError {
       DuplicateSectionFound(duplicated_section) => {
         write!(f, "Duplicate section found! '{duplicated_section}'")
       }
-      MissingData => write!(f, "Missing data!"),
+      MissingData(line) => write!(f, "Missing data! Line = '{line}'"),
+      MalformedAsciiData(message) => write!(f, "Malformed ASCII data! Error={message}"),
     }
   }
 }

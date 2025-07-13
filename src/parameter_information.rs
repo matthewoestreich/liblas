@@ -1,4 +1,6 @@
-use crate::{LasioError, Mnemonic};
+use serde::{Deserialize, Serialize};
+
+use crate::{LibLasError, Mnemonic};
 use std::collections::HashMap;
 
 /*
@@ -10,7 +12,7 @@ use std::collections::HashMap;
 • The following is an example of a Parameter Information Section.
 */
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ParameterInformation(HashMap<String, Mnemonic>);
 
 impl Default for ParameterInformation {
@@ -20,7 +22,7 @@ impl Default for ParameterInformation {
 }
 
 impl ParameterInformation {
-  pub fn from_lines(lines: Vec<String>) -> Result<ParameterInformation, LasioError> {
+  pub fn from_lines(lines: Vec<String>) -> Result<ParameterInformation, LibLasError> {
     let mut pi = ParameterInformation::default();
 
     for line in lines {

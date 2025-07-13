@@ -1,12 +1,14 @@
-use crate::LasioError::{self, *};
+use crate::LibLasError::{self, *};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum MnemonicData {
   Float(f64),
   Text(String),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Mnemonic {
   // Name of mnemonic
   pub name: String,
@@ -25,7 +27,7 @@ impl Default for MnemonicData {
 }
 
 impl Mnemonic {
-  pub fn from_line(line: &str) -> Result<Self, LasioError> {
+  pub fn from_line(line: &str) -> Result<Self, LibLasError> {
     let (before_colon, after_colon) = line
       .split_once(':')
       .ok_or_else(|| MissingRequiredDelimeter(":".to_string()))?;
@@ -42,28 +44,25 @@ impl Mnemonic {
       return Err(MissingRequiredMnemonicField("name".to_string()));
     }
 
-    let after_dot = after_dot.trim_start();
+    let after_dot = after_dot.trim_end();
 
-    let (unit, data_str) = match after_dot.split_once(char::is_whitespace) {
-      Some((u, rest)) => {
-        let data = rest.trim();
-        if data.is_empty() {
-          return Err(MissingData);
-        }
-        (Some(u.trim().to_string()), data)
-      }
-      None => {
-        if after_dot.is_empty() {
-          return Err(MissingData);
-        }
-        (None, after_dot)
+    let (unit, data_str) = if after_dot.trim_start().is_empty() {
+      (None, "")
+    } else if after_dot.chars().next().unwrap().is_whitespace() {
+      (None, after_dot.trim())
+    } else {
+      match after_dot.trim_start().split_once(char::is_whitespace) {
+        Some((u, rest)) => (Some(u.trim().to_string()), rest.trim()),
+        None => (Some(after_dot.trim().to_string()), ""), // unit present, no data
       }
     };
 
-    // Data should be either a float or a string.
-    let data = match data_str.parse::<f64>() {
-      Ok(f) => MnemonicData::Float(f),
-      Err(_) => MnemonicData::Text(data_str.to_string()),
+    let data = if data_str.is_empty() {
+      MnemonicData::Text("".to_string())
+    } else if let Ok(f) = data_str.parse::<f64>() {
+      MnemonicData::Float(f)
+    } else {
+      MnemonicData::Text(data_str.to_string())
     };
 
     Ok(Mnemonic {

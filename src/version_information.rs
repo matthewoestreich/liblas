@@ -1,16 +1,19 @@
+use crate::{LibLasError, Mnemonic};
+use serde::{self, Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{LasioError, Mnemonic};
-
-#[derive(Default, Debug)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct VersionInformation {
+  #[serde(rename = "VERS")]
   pub version: Mnemonic,
+  #[serde(rename = "WRAP")]
   pub wrap: Mnemonic,
+  #[serde(flatten)]
   pub extra: HashMap<String, Mnemonic>,
 }
 
 impl VersionInformation {
-  pub fn from_lines(lines: Vec<String>) -> Result<VersionInformation, LasioError> {
+  pub fn from_lines(lines: Vec<String>) -> Result<VersionInformation, LibLasError> {
     let mut vi = VersionInformation::default();
 
     for line in lines {

@@ -1,4 +1,19 @@
-use crate::Mnemonic;
+use crate::{LibLasError, Mnemonic};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub type CurveInformation = HashMap<String, Mnemonic>;
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct CurveInformation(pub HashMap<String, Mnemonic>);
+
+impl CurveInformation {
+  pub fn from_lines(lines: Vec<String>) -> Result<CurveInformation, LibLasError> {
+    let mut ci = CurveInformation::default();
+
+    for line in lines {
+      let mnemonic = Mnemonic::from_line(&line)?;
+      ci.0.insert(mnemonic.name.clone(), mnemonic);
+    }
+
+    Ok(ci)
+  }
+}
