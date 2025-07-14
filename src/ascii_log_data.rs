@@ -1,4 +1,7 @@
-use crate::LibLasError::{self, *};
+use crate::{
+  CurveInformation,
+  LibLasError::{self, *},
+};
 use serde::{
   Deserialize, Deserializer, Serialize,
   ser::{SerializeMap, Serializer},
@@ -23,7 +26,6 @@ and line feed
 pub struct AsciiColumn {
   #[serde(rename = "NAME")]
   pub name: String,
-
   #[serde(rename = "DATA")]
   pub data: Vec<f64>,
 }
@@ -34,7 +36,7 @@ pub struct AsciiLogData {
 }
 
 impl AsciiLogData {
-  pub fn from_lines(lines: Vec<String>) -> Result<Self, LibLasError> {
+  pub fn from_lines(lines: Vec<String>, curve_info: &CurveInformation) -> Result<Self, LibLasError> {
     let mut iter = lines.into_iter();
 
     let header_line = iter
@@ -49,9 +51,16 @@ impl AsciiLogData {
       return Err(MalformedAsciiData("Header line must start with ~A".to_string()));
     }
 
-    let column_names: Vec<String> = tokens.map(|s| s.to_string()).collect();
+    let mut column_names: Vec<String> = tokens.map(|s| s.to_string()).collect();
+
     if column_names.is_empty() {
-      return Err(MalformedAsciiData("No columns found in header line".to_string()));
+      if curve_info.0.is_empty() {
+        return Err(MalformedAsciiData(
+          "No column headers and no curve info to infer from".to_string(),
+        ));
+      }
+
+      column_names = curve_info.0.keys().cloned().collect();
     }
 
     let mut columns: Vec<AsciiColumn> = column_names

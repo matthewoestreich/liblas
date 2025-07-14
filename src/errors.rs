@@ -13,6 +13,10 @@ pub enum LibLasError {
   ReadingNextLine,
   MissingData(String),
   MalformedAsciiData(String),
+  OpeningLasFile,
+  AsciiLogDataNotLastSection,
+  ConvertingToJson(String),
+  CurveInfoRequiredToParseAsciiLogData,
 }
 
 impl Error for LibLasError {}
@@ -21,6 +25,10 @@ impl Display for LibLasError {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     use LibLasError::*;
     match self {
+      CurveInfoRequiredToParseAsciiLogData => write!(f, "Curve Information is needed to parse ASCII Log Data!"),
+      ConvertingToJson(message) => write!(f, "Error converting to JSON! {message}"),
+      AsciiLogDataNotLastSection => write!(f, "According to CWLS 2.0, ASCII Log Data must be the last section!"),
+      OpeningLasFile => write!(f, "Unable to open .las file!"),
       UnknownSection(section) => write!(f, "Unknown section encountered! '{section}'"),
       MissingRequiredDelimeter(delimeter) => write!(f, "Missing required delimeter! '{delimeter}'"),
       MissingRequiredMnemonicField(field_name) => {

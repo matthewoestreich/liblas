@@ -1,9 +1,7 @@
-use std::error::Error;
-
 use liblas::*;
 
-fn main() -> Result<(), Box<dyn Error>> {
-  let las_file_path = "sample_las_files/sample_1.las";
+fn main() -> Result<(), LibLasError> {
+  let las_file_path = "test_las_files/minified.las";
   let mut las = LasFile::new(las_file_path.into());
   las.parse()?;
   let json = las.to_json_str()?;
