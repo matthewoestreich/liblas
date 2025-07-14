@@ -22,7 +22,7 @@ pub struct Mnemonic {
 
 impl Default for MnemonicData {
   fn default() -> Self {
-    MnemonicData::Text(String::new())
+    return MnemonicData::Text(String::new());
   }
 }
 
@@ -30,13 +30,13 @@ impl Mnemonic {
   pub fn from_line(line: &str) -> Result<Self, LibLasError> {
     let (before_colon, after_colon) = line
       .split_once(':')
-      .ok_or_else(|| MissingRequiredDelimeter(":".to_string()))?;
+      .ok_or_else(|| return MissingRequiredDelimeter(":".to_string()))?;
 
     let description = after_colon.trim().to_string();
 
     let (name_part, after_dot) = before_colon
       .split_once('.')
-      .ok_or_else(|| MissingRequiredDelimeter(".".to_string()))?;
+      .ok_or_else(|| return MissingRequiredDelimeter(".".to_string()))?;
 
     let name = name_part.trim().to_string();
 
@@ -65,11 +65,11 @@ impl Mnemonic {
       MnemonicData::Text(data_str.to_string())
     };
 
-    Ok(Mnemonic {
+    return Ok(Mnemonic {
       name,
-      unit: unit.filter(|u| !u.is_empty()),
+      unit: unit.filter(|u| return !u.is_empty()),
       data,
       description,
-    })
+    });
   }
 }

@@ -14,6 +14,6 @@ impl CurveInformation {
       ci.0.insert(mnemonic.name.clone(), mnemonic);
     }
 
-    Ok(ci)
+    return Ok(ci);
   }
 }

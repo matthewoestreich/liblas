@@ -24,6 +24,7 @@ impl Error for LibLasError {}
 impl Display for LibLasError {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result {
     use LibLasError::*;
+    #[allow(clippy::implicit_return)]
     match self {
       CurveInfoRequiredToParseAsciiLogData => write!(f, "Curve Information is needed to parse ASCII Log Data!"),
       ConvertingToJson(message) => write!(f, "Error converting to JSON! {message}"),

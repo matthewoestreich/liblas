@@ -27,7 +27,7 @@ pub struct LasFile {
 
 impl LasFile {
   pub fn new(file_path: PathBuf) -> Self {
-    Self {
+    return Self {
       file_path,
       version_information: None,
       well_information: None,
@@ -35,11 +35,11 @@ impl LasFile {
       curve_information: None,
       other_information: None,
       parameter_information: None,
-    }
+    };
   }
 
   pub fn to_json_str(&self) -> Result<String, LibLasError> {
-    return serde_json::to_string_pretty(self).map_err(|e| ConvertingToJson(e.to_string()));
+    return serde_json::to_string_pretty(self).map_err(|e| return ConvertingToJson(e.to_string()));
   }
 
   pub fn parse(&mut self) -> Result<(), LibLasError> {
@@ -78,7 +78,10 @@ impl LasFile {
       if peeked_line.starts_with('~') {
         break;
       }
-      let next_line = lines.next().ok_or(ReadingNextLine)?.map_err(|_| ReadingNextLine)?;
+      let next_line = lines
+        .next()
+        .ok_or(ReadingNextLine)?
+        .map_err(|_| return ReadingNextLine)?;
       // TODO : SKIPPING COMMENTS FOR NOW
       if !next_line.starts_with("#") {
         section.push(next_line);

@@ -1,3 +1,7 @@
+#![allow(clippy::needless_return)]
+#![warn(clippy::implicit_return)]
+#![deny(clippy::unnecessary_mut_passed)]
+
 mod ascii_log_data;
 mod curve_information;
 mod errors;

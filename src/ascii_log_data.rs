@@ -51,7 +51,7 @@ impl AsciiLogData {
       return Err(MalformedAsciiData("Header line must start with ~A".to_string()));
     }
 
-    let mut column_names: Vec<String> = tokens.map(|s| s.to_string()).collect();
+    let mut column_names: Vec<String> = tokens.map(|s| return s.to_string()).collect();
 
     if column_names.is_empty() {
       if curve_info.0.is_empty() {
@@ -65,7 +65,7 @@ impl AsciiLogData {
 
     let mut columns: Vec<AsciiColumn> = column_names
       .into_iter()
-      .map(|name| AsciiColumn { name, data: Vec::new() })
+      .map(|name| return AsciiColumn { name, data: Vec::new() })
       .collect();
 
     for line in iter {
@@ -90,7 +90,7 @@ impl AsciiLogData {
       }
     }
 
-    Ok(AsciiLogData { columns })
+    return Ok(AsciiLogData { columns });
   }
 }
 
@@ -103,7 +103,7 @@ impl Serialize for AsciiLogData {
     for col in &self.columns {
       map.serialize_entry(&col.name, &col.data)?;
     }
-    map.end()
+    return map.end();
   }
 }
 
@@ -113,7 +113,10 @@ impl<'de> Deserialize<'de> for AsciiLogData {
     D: Deserializer<'de>,
   {
     let map: HashMap<String, Vec<f64>> = HashMap::deserialize(deserializer)?;
-    let columns = map.into_iter().map(|(name, data)| AsciiColumn { name, data }).collect();
-    Ok(AsciiLogData { columns })
+    let columns = map
+      .into_iter()
+      .map(|(name, data)| return AsciiColumn { name, data })
+      .collect();
+    return Ok(AsciiLogData { columns });
   }
 }
