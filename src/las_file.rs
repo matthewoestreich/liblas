@@ -5,7 +5,7 @@ use std::io::{BufRead, BufReader, Lines};
 use std::iter::Peekable;
 use std::path::PathBuf;
 
-type PeakableLine = Peekable<Lines<BufReader<File>>>;
+type PeekableLine = Peekable<Lines<BufReader<File>>>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LasFile {
@@ -71,7 +71,7 @@ impl LasFile {
     return Ok(());
   }
 
-  fn chop_section(&mut self, lines: &mut PeakableLine) -> Result<Vec<String>, LibLasError> {
+  fn chop_section(&mut self, lines: &mut PeekableLine) -> Result<Vec<String>, LibLasError> {
     let mut section: Vec<String> = vec![];
 
     while let Some(Ok(peeked_line)) = lines.peek() {
@@ -91,7 +91,7 @@ impl LasFile {
     return Ok(section);
   }
 
-  fn parse_version_information(&mut self, lines: &mut PeakableLine) -> Result<(), LibLasError> {
+  fn parse_version_information(&mut self, lines: &mut PeekableLine) -> Result<(), LibLasError> {
     if self.version_information.is_some() {
       return Err(DuplicateSectionFound("~Version Information".to_string()));
     }
@@ -100,7 +100,7 @@ impl LasFile {
     return Ok(());
   }
 
-  fn parse_well_information(&mut self, lines: &mut PeakableLine) -> Result<(), LibLasError> {
+  fn parse_well_information(&mut self, lines: &mut PeekableLine) -> Result<(), LibLasError> {
     if self.well_information.is_some() {
       return Err(DuplicateSectionFound("~Well Information".to_string()));
     }
@@ -109,19 +109,19 @@ impl LasFile {
     return Ok(());
   }
 
-  fn parse_other_information(&mut self, lines: &mut PeakableLine) -> Result<(), LibLasError> {
+  fn parse_other_information(&mut self, lines: &mut PeekableLine) -> Result<(), LibLasError> {
     let o_lines = self.chop_section(lines)?;
     self.other_information = Some(OtherInformation(o_lines.join(" ")));
     return Ok(());
   }
 
-  fn parse_parameter_information(&mut self, lines: &mut PeakableLine) -> Result<(), LibLasError> {
+  fn parse_parameter_information(&mut self, lines: &mut PeekableLine) -> Result<(), LibLasError> {
     let p_lines = self.chop_section(lines)?;
     self.parameter_information = Some(ParameterInformation::from_lines(p_lines)?);
     return Ok(());
   }
 
-  fn parse_curve_information(&mut self, lines: &mut PeakableLine) -> Result<(), LibLasError> {
+  fn parse_curve_information(&mut self, lines: &mut PeekableLine) -> Result<(), LibLasError> {
     if self.curve_information.is_some() {
       return Err(DuplicateSectionFound("~Curve Information".to_string()));
     }
@@ -130,7 +130,7 @@ impl LasFile {
     return Ok(());
   }
 
-  fn parse_ascii_data(&mut self, current_line: String, rest_of_lines: &mut PeakableLine) -> Result<(), LibLasError> {
+  fn parse_ascii_data(&mut self, current_line: String, rest_of_lines: &mut PeekableLine) -> Result<(), LibLasError> {
     let mut a_lines: Vec<String> = vec![current_line];
     a_lines.extend(self.chop_section(rest_of_lines)?);
 
