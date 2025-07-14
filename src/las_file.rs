@@ -49,7 +49,7 @@ impl LasFile {
     let mut lines = reader.lines().peekable();
 
     while let Some(read_line) = lines.next() {
-      let line = read_line.or(Err(LibLasError::ReadingNextLine))?;
+      let line = read_line.or(Err(ReadingNextLine))?;
 
       if line.starts_with("~V") {
         self.parse_version_information(&mut lines)?;
