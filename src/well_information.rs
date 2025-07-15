@@ -122,7 +122,7 @@ pub struct WellInformation {
   #[serde(flatten)]
   pub extra: HashMap<String, Mnemonic>,
   #[serde(skip)]
-  pub is_parsed: bool,
+  pub(crate) is_parsed: bool,
 }
 
 impl WellInformation {

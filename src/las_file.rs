@@ -42,7 +42,7 @@ impl LasFile {
       } else if current_line.starts_with("~W") {
         if this.well_information.is_parsed {
           return Err(InvalidLasFile(
-            "Only one '~Version Information' section may exist per .las file!".into(),
+            "Only one '~Well Information' section may exist per .las file!".into(),
           ));
         }
         this.well_information = WellInformation::parse(&mut line_reader)?;
