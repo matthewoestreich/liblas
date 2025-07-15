@@ -1,4 +1,4 @@
-use crate::{LibLasError, Mnemonic, PeekableFileReader, errors::LibLasError::*};
+use crate::{errors::LibLasError::*, LibLasError, Mnemonic, PeekableFileReader, Token};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 
 /*
@@ -146,7 +146,7 @@ impl WellInformation {
 
       let line = reader.next().ok_or(ReadingNextLine)??.trim().to_string();
 
-      if line.starts_with("#") {
+      if line.starts_with(&Token::Comment()) {
         current_comments.push(line.clone());
         continue;
       }

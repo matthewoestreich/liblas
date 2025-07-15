@@ -1,6 +1,6 @@
 use crate::{
   LibLasError::{self, ReadingNextLine},
-  PeekableFileReader,
+  PeekableFileReader, Token,
 };
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +33,7 @@ impl OtherInformation {
 
       let line = &reader.next().ok_or(ReadingNextLine)??.trim().to_string();
 
-      if line.starts_with("#") {
+      if line.starts_with(&Token::Comment()) {
         current_comments.push(line.clone());
         continue;
       }
