@@ -31,7 +31,7 @@ impl VersionInformation {
     }
 
     while let Some(Ok(peeked_line)) = reader.peek() {
-      if peeked_line.trim().to_string().starts_with("~") {
+      if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
         break;
       }
 

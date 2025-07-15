@@ -14,7 +14,7 @@ and line feed
 use crate::{
   CurveInformation,
   LibLasError::{self, *},
-  PeekableFileReader,
+  PeekableFileReader, Token,
 };
 use serde::{
   self, Deserialize, Serialize,
@@ -72,14 +72,14 @@ impl AsciiLogData {
     }
 
     while let Some(Ok(peeked_line)) = reader.peek() {
-      if peeked_line.trim().to_string().starts_with('~') {
+      if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
         break;
       }
 
       let next_line = reader.next().ok_or(ReadingNextLine)??;
 
       // TODO : SKIPPING COMMENTS FOR NOW
-      if next_line.starts_with("#") {
+      if next_line.starts_with(&Token::Comment()) {
         continue;
       }
 
@@ -125,7 +125,7 @@ impl AsciiLogData {
     let first_token = header_tokens
       .next()
       .ok_or(MalformedAsciiData("Empty header line".into()))?;
-    if first_token != "~A" {
+    if first_token != Token::AsciiSection() {
       return Err(MalformedAsciiData("Header line must start with ~A".into()));
     }
 

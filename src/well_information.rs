@@ -1,4 +1,4 @@
-use crate::{errors::LibLasError::*, LibLasError, Mnemonic, PeekableFileReader, Token};
+use crate::{LibLasError, Mnemonic, PeekableFileReader, Token, errors::LibLasError::*};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 
 /*
@@ -140,7 +140,7 @@ impl WellInformation {
     }
 
     while let Some(Ok(peeked_line)) = reader.peek() {
-      if peeked_line.trim().to_string().starts_with("~") {
+      if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
         break;
       }
 
