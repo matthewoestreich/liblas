@@ -1,25 +1,6 @@
-use std::fs;
-
 use liblas::*;
 
 fn main() -> Result<(), LibLasError> {
-  /*
-  let example_las = LasFile::parse("tests/las/example.las".into())?;
-  let json = example_las.to_json_str()?;
-
-  let well_info = example_las.well_information;
-  let well_info_strt = well_info.strt;
-
-  let curve_info = example_las.curve_information;
-  //println!("{:#?}", curve_info.curves);
-  let curve_depth = curve_info.curves
-    .iter()
-    .find(|c| c.description.contains("DEPTH"));
-  println!("curve_depth={curve_depth:?}");
-
-  fs::write("json_las/example.json", json)?;
-  */
-
   let version_info = VersionInformation::new(
     Mnemonic::new("VERS".into(), None, MnemonicData::Float(2.0), "CWLS LOG ASCII STANDARD -VERSION 2.0".into()),
     Mnemonic::new("WRAP".into(), None, MnemonicData::Text("NO".into()), "ONE LINE PER DEPTH STEP".into()),
@@ -86,7 +67,7 @@ fn main() -> Result<(), LibLasError> {
       AsciiColumn::new("ILM".into(), vec![110.200, 110.200, 110.200]),
       AsciiColumn::new("ILD".into(), vec![5.6, 5.6, 105.6]),
     ],
-    vec![], // comments
+    vec![],
   );
 
   let other_info = OtherInformation::new(
@@ -98,51 +79,7 @@ fn main() -> Result<(), LibLasError> {
 
   let json = las_file.to_json_str()?;
 
-  fs::write("examples/from_readme/__out__.json", json)?;
+  println!("{json}");
 
   return Ok(());
 }
-
-/*
-~VERSION INFORMATION
-VERS. 2.0 : CWLS LOG ASCII STANDARD -VERSION 2.0
-WRAP. NO : ONE LINE PER DEPTH STEP
-~WELL INFORMATION
-STRT .M 1670.0000 :START DEPTH
-STOP .M 1669.7500 :STOP DEPTH
-STEP .M -0.1250 :STEP
-NULL . -999.25 :NULL VALUE
-COMP . ANY OIL COMPANY INC. :COMPANY
-WELL . ANY ET AL 12-34-12-34 :WELL
-FLD . WILDCAT :FIELD
-LOC . 12-34-12-34W5M :LOCATION
-PROV . ALBERTA :PROVINCE
-SRVC . ANY LOGGING COMPANY INC. :SERVICE COMPANY
-DATE . 13-DEC-86 :LOG DATE
-UWI . 100123401234W500 :UNIQUE WELL ID
-LIC . 23412 :ERCB LICENCE NUMB
-~CURVE INFORMATION
-DEPT .M : 1 DEPTH
-DT .US/M 60 520 32 00 : 2 SONIC TRANSIT TIME
-RHOB .K/M3 45 350 01 00 : 3 BULK DENSITY
-NPHI .V/V 42 890 00 00 : 4 NEUTRON POROSITY
-SFLU .OHMM 07 220 04 00 : 5 SHALLOW RESISTIVITY
-SFLA .OHMM 07 222 01 00 : 6 SHALLOW RESISTIVITY
-ILM .OHMM 07 120 44 00 : 7 MEDIUM RESISTIVITY
-ILD .OHMM 07 120 46 00 : 8 DEEP RESISTIVITY
-~PARAMETER INFORMATION
-MUD . GEL CHEM : MUD TYPE
-BHT .DEGC 35.5000 : BOTTOM HOLE TEMPERATURE
-CSGL .M 124.6 : BASE OF CASING
-MATR . SAND : NEUTRON MATRIX
-MDEN . 2710.0000 : LOGGING MATRIX DENSITY
-RMF .OHMM 0.2160 : MUD FILTRATE RESISTIVITY
-DFD .K/M3 1525.0000 : DRILL FLUID DENSITY
-~OTHER
-Note: The logging tools became stuck at 625 metres causing the
-data between 625 metres and 615 metres to be invalid.
-~A DEPTH DT RHOB NPHI SFLU SFLA ILM ILD
-1670.000 123.450 2550.000 0.450 123.450 123.450 110.200 05.600
-1669.875 123.450 2550.000 0.450 123.450 123.450 110.200 05.600
-1669.750 123.450 2550.000 0.450 123.450 123.450 110.200 105.600
-*/

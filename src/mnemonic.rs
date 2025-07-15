@@ -99,4 +99,14 @@ impl Mnemonic {
 
     return Ok(this);
   }
+
+  pub fn new(name: String, unit: Option<String>, value: MnemonicData, description: String) -> Self {
+    return Self {
+      name,
+      unit,
+      description,
+      value,
+      comments: vec![],
+    };
+  }
 }

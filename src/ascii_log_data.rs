@@ -29,6 +29,12 @@ pub struct AsciiColumn {
   pub data: Vec<f64>,
 }
 
+impl AsciiColumn {
+  pub fn new(name: String, data: Vec<f64>) -> Self {
+    return Self { name, data };
+  }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct AsciiLogData {
   pub data: Vec<AsciiColumn>,
@@ -151,11 +157,11 @@ impl AsciiLogData {
     return Ok(column_names);
   }
 
-  pub fn new(data: Vec<AsciiColumn>, comments: Vec<String>, is_parsed: bool) -> Self {
+  pub fn new(data: Vec<AsciiColumn>, comments: Vec<String>) -> Self {
     return Self {
       data,
       comments,
-      is_parsed,
+      is_parsed: false,
     };
   }
 }
