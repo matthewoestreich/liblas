@@ -20,8 +20,8 @@ impl VersionInformation {
   pub fn parse(
     reader: &mut PeekableFileReader,
     current_comments: &mut Vec<String>,
-  ) -> Result<VersionInformation, LibLasError> {
-    let mut this = VersionInformation::default();
+  ) -> Result<Self, LibLasError> {
+    let mut this = Self::default();
 
     // Comments were above the "~Version Information" section.
     if !current_comments.is_empty() {

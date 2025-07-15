@@ -129,8 +129,8 @@ impl WellInformation {
   pub fn parse(
     reader: &mut PeekableFileReader,
     current_comments: &mut Vec<String>,
-  ) -> Result<WellInformation, LibLasError> {
-    let mut this = WellInformation::default();
+  ) -> Result<Self, LibLasError> {
+    let mut this = Self::default();
 
     // Comments were above the "~Well Information" section
     if !current_comments.is_empty() {

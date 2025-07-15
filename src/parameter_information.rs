@@ -25,8 +25,8 @@ impl ParameterInformation {
   pub fn parse(
     reader: &mut PeekableFileReader,
     current_comments: &mut Vec<String>,
-  ) -> Result<ParameterInformation, LibLasError> {
-    let mut this = ParameterInformation::default();
+  ) -> Result<Self, LibLasError> {
+    let mut this = Self::default();
 
     // Comments were above the "~Parameter Info" line
     if !current_comments.is_empty() {

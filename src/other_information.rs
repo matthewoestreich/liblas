@@ -16,8 +16,8 @@ impl OtherInformation {
   pub fn parse(
     reader: &mut PeekableFileReader,
     current_comments: &mut Vec<String>,
-  ) -> Result<OtherInformation, LibLasError> {
-    let mut this = OtherInformation::default();
+  ) -> Result<Self, LibLasError> {
+    let mut this = Self::default();
 
     // Comments were abovve the "~Other Info" section
     if !current_comments.is_empty() {

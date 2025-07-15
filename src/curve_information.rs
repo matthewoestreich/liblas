@@ -16,8 +16,8 @@ impl CurveInformation {
   pub fn parse(
     reader: &mut PeekableFileReader,
     current_comments: &mut Vec<String>,
-  ) -> Result<CurveInformation, LibLasError> {
-    let mut this = CurveInformation::default();
+  ) -> Result<Self, LibLasError> {
+    let mut this = Self::default();
 
     // Comments were above the "~Curve Information" section
     if !current_comments.is_empty() {
