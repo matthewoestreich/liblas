@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/matthewoestreich/liblas"
 homepage = "https://github.com/matthewoestreich/liblas#README.md"
-keywords = ["las file", "lasso", "las", "geophysical well logs", "cwls las"]
+keywords = ["las-file", "lasso", "las", "geophysical-well-logs", "cwls-las"]
 categories = ["command-line-utilities", "science"] # See available categories here: https://crates.io/category_slugs
 
 [dependencies]
