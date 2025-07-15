@@ -1,10 +1,14 @@
+use std::fs;
+
 use liblas::*;
 
 fn main() -> Result<(), LibLasError> {
-  let las_file_path = "test_las_files/minified.las";
+  let file_name = "5070-14-SESW-mod";
+  let las_file_path = format!("tests/las/{file_name}.las");
   let las = LasFile::parse(las_file_path.into())?;
   //las.parse()?;
   let json = las.to_json_str()?;
-  println!("{json}");
+  let output_path = format!("json_las/{file_name}.json");
+  fs::write(output_path, json)?;
   return Ok(());
 }

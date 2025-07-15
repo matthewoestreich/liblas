@@ -17,10 +17,9 @@ use crate::{
   PeekableFileReader,
 };
 use serde::{
-  self, Deserialize, Deserializer, Serialize,
+  self, Deserialize, Serialize,
   ser::{SerializeMap, Serializer},
 };
-use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AsciiColumn {
@@ -30,16 +29,19 @@ pub struct AsciiColumn {
   pub data: Vec<f64>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct AsciiLogData {
-  pub columns: Vec<AsciiColumn>,
+  pub data: Vec<AsciiColumn>,
+  pub comments: Vec<String>,
+  #[serde(skip)]
   pub(crate) is_parsed: bool,
 }
 
 impl Default for AsciiLogData {
   fn default() -> Self {
     return Self {
-      columns: vec![],
+      data: vec![],
+      comments: vec![],
       is_parsed: false,
     };
   }
@@ -50,18 +52,27 @@ impl AsciiLogData {
     reader: &mut PeekableFileReader,
     header_line: String,
     curve_info: &CurveInformation,
+    current_comments: &mut Vec<String>,
   ) -> Result<Self, LibLasError> {
     let column_names = Self::parse_header(header_line, curve_info)?;
-    let mut this = AsciiLogData {
-      columns: column_names
+    let mut this = Self {
+      comments: vec![],
+      data: column_names
         .into_iter()
         .map(|name| return AsciiColumn { name, data: Vec::new() })
         .collect(),
       is_parsed: true,
     };
 
+    // Comments were above the "~A" section
+    if !current_comments.is_empty() {
+      this.comments = current_comments.to_vec();
+      // Clear comments because any additional comments may be intended for a mnemonic or a diff section entirely.
+      current_comments.clear();
+    }
+
     while let Some(Ok(peeked_line)) = reader.peek() {
-      if peeked_line.starts_with('~') {
+      if peeked_line.trim().to_string().starts_with('~') {
         break;
       }
 
@@ -74,27 +85,28 @@ impl AsciiLogData {
 
       let values: Vec<&str> = next_line.split_whitespace().collect();
 
-      if values.len() != this.columns.len() {
+      if values.len() != this.data.len() {
         return Err(MalformedAsciiData(format!(
           "Data row length '{}' does not match column count '{}'",
           values.len(),
-          this.columns.len(),
+          this.data.len(),
         )));
       }
 
       // Since we parse row by row, we 'zip' the header up with each data row.
       // This way we know which header to put each part of the data row into.
-      for (col, val_str) in this.columns.iter_mut().zip(values.iter()) {
+      for (col, val_str) in this.data.iter_mut().zip(values.iter()) {
         col.data.push(val_str.parse()?); // Parse string into float64
       }
     }
 
     // Since ASCII Log Data is required to be last section in las files,
-    // if we encounter anything other than a comment here, we error out.
-    while let Some(Ok(nl)) = reader.next() {
-      if nl.starts_with("#") {
-        continue;
-      }
+    // if we encounter anything after ASCII data here, we error out.
+    // From the spec: (outlining how not even comments are allowed after ~A)
+    // - "#" (pound): The ASCII equivalent of this flag is decimal 35. This character is recognized as a
+    //   flag when it occurs as the first non-space character on a line. This flag is used to indicate
+    //   that the line is a comment line. **Comment lines can appear anywhere above the ~A section**
+    if reader.next().is_some() {
       return Err(InvalidLasFile(
         "ASCII Log Data must be the last section in a .las file!".into(),
       ));
@@ -125,10 +137,11 @@ impl AsciiLogData {
       column_names = curve_info.curves.iter().map(|c| return c.name.to_string()).collect();
     }
 
-    // From the LAS specification : "The index curve (i.e. first curve) must be depth, time or index.
-    // The only valid mnemonics for the index channel are DEPT, DEPTH, TIME, or INDEX."
-    let valid_index_channel_names: Vec<String> = vec!["DEPT".into(), "DEPTH".into(), "TIME".into(), "INDEX".into()];
-    if !valid_index_channel_names.contains(&column_names[0]) {
+    // From the LAS specification : >>"The index curve (i.e. first curve) must be depth, time or index.
+    // The only valid mnemonics for the index channel are DEPT, DEPTH, TIME, or INDEX.".<<
+    // Since I do not believe casing is a concern, we normalize to lower case.
+    let valid_index_channel_names: Vec<String> = vec!["dept".into(), "depth".into(), "time".into(), "index".into()];
+    if !valid_index_channel_names.contains(&column_names[0].to_lowercase()) {
       return Err(InvalidLasFile(
         "The index curve (i.e. first curve) must be depth ('DEPT' or 'DEPTH'), time ('TIME') or index ('INDEX')."
           .into(),
@@ -137,6 +150,14 @@ impl AsciiLogData {
 
     return Ok(column_names);
   }
+
+  pub fn new(data: Vec<AsciiColumn>, comments: Vec<String>, is_parsed: bool) -> Self {
+    return Self {
+      data,
+      comments,
+      is_parsed,
+    };
+  }
 }
 
 impl Serialize for AsciiLogData {
@@ -144,27 +165,10 @@ impl Serialize for AsciiLogData {
   where
     S: Serializer,
   {
-    let mut map = serializer.serialize_map(Some(self.columns.len()))?;
-    for col in &self.columns {
+    let mut map = serializer.serialize_map(Some(self.data.len()))?;
+    for col in &self.data {
       map.serialize_entry(&col.name, &col.data)?;
     }
     return map.end();
-  }
-}
-
-impl<'de> Deserialize<'de> for AsciiLogData {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    let map: HashMap<String, Vec<f64>> = HashMap::deserialize(deserializer)?;
-    let columns = map
-      .into_iter()
-      .map(|(name, data)| return AsciiColumn { name, data })
-      .collect();
-    return Ok(AsciiLogData {
-      columns,
-      is_parsed: true,
-    });
   }
 }

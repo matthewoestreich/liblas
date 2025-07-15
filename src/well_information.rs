@@ -1,3 +1,6 @@
+use crate::{LibLasError, Mnemonic, PeekableFileReader, errors::LibLasError::*};
+use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
+
 /*
   ~W (Well Information)
   • This section is mandatory.
@@ -81,11 +84,8 @@
   DATE. 13-DEC-86 :LOG DATE
   UWI . 100123401234W500 :UNIQUE WELL ID
 */
-use crate::{LibLasError, Mnemonic, PeekableFileReader, errors::LibLasError::*};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct WellInformation {
   #[serde(rename = "STRT")]
   pub strt: Mnemonic,
@@ -119,64 +119,73 @@ pub struct WellInformation {
   pub uwi: Mnemonic,
   #[serde(rename = "API")]
   pub api: Mnemonic,
-  #[serde(flatten)]
-  pub extra: HashMap<String, Mnemonic>,
-  pub comments: String,
+  pub additional: Vec<Mnemonic>,
+  pub comments: Vec<String>,
   #[serde(skip)]
   pub(crate) is_parsed: bool,
 }
 
 impl WellInformation {
-  pub fn parse(reader: &mut PeekableFileReader) -> Result<WellInformation, LibLasError> {
+  pub fn parse(
+    reader: &mut PeekableFileReader,
+    current_comments: &mut Vec<String>,
+  ) -> Result<WellInformation, LibLasError> {
     let mut this = WellInformation::default();
 
+    // Comments were above the "~Well Information" section
+    if !current_comments.is_empty() {
+      this.comments = current_comments.to_vec();
+      // Clear comments because any additional comments may be intended for a mnemonic or a diff section entirely.
+      current_comments.clear();
+    }
+
     while let Some(Ok(peeked_line)) = reader.peek() {
-      if peeked_line.starts_with("~") {
+      if peeked_line.trim().to_string().starts_with("~") {
         break;
       }
 
-      let line = reader.next().ok_or(ReadingNextLine)??;
+      let line = reader.next().ok_or(ReadingNextLine)??.trim().to_string();
 
-      // TODO : SKIPPING COMMENTS FOR NOW
       if line.starts_with("#") {
+        current_comments.push(line.clone());
         continue;
       }
 
       if line.starts_with("STRT") {
-        this.strt = Mnemonic::from_line(&line)?;
+        this.strt = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("STOP") {
-        this.stop = Mnemonic::from_line(&line)?;
+        this.stop = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("STEP") {
-        this.step = Mnemonic::from_line(&line)?;
+        this.step = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("NULL") {
-        this.null = Mnemonic::from_line(&line)?;
+        this.null = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("COMP") {
-        this.comp = Mnemonic::from_line(&line)?;
+        this.comp = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("WELL") {
-        this.well = Mnemonic::from_line(&line)?;
+        this.well = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("FLD") {
-        this.fld = Mnemonic::from_line(&line)?;
+        this.fld = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("LOC") {
-        this.loc = Mnemonic::from_line(&line)?;
+        this.loc = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("PROV") {
-        this.prov = Mnemonic::from_line(&line)?;
+        this.prov = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("CNTY") {
-        this.cnty = Mnemonic::from_line(&line)?;
+        this.cnty = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("STAT") {
-        this.stat = Mnemonic::from_line(&line)?;
+        this.stat = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("CTRY") {
-        this.ctry = Mnemonic::from_line(&line)?;
+        this.ctry = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("SRVC") {
-        this.srvc = Mnemonic::from_line(&line)?;
+        this.srvc = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("DATE") {
-        this.date = Mnemonic::from_line(&line)?;
+        this.date = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("UWI") {
-        this.uwi = Mnemonic::from_line(&line)?;
+        this.uwi = Mnemonic::from_str(&line, current_comments)?;
       } else if line.starts_with("API") {
-        this.api = Mnemonic::from_line(&line)?;
+        this.api = Mnemonic::from_str(&line, current_comments)?;
       } else {
-        let x = Mnemonic::from_line(&line)?;
-        this.extra.insert(x.name.clone(), x);
+        let x = Mnemonic::from_str(&line, current_comments)?;
+        this.additional.push(x);
       }
     }
 
@@ -237,5 +246,89 @@ impl WellInformation {
 
     this.is_parsed = true;
     return Ok(this);
+  }
+
+  #[allow(clippy::too_many_arguments)]
+  pub fn new(
+    strt: Mnemonic,
+    stop: Mnemonic,
+    step: Mnemonic,
+    null: Mnemonic,
+    comp: Mnemonic,
+    well: Mnemonic,
+    fld: Mnemonic,
+    loc: Mnemonic,
+    prov: Mnemonic,
+    cnty: Mnemonic,
+    stat: Mnemonic,
+    ctry: Mnemonic,
+    srvc: Mnemonic,
+    date: Mnemonic,
+    uwi: Mnemonic,
+    api: Mnemonic,
+    additional: Vec<Mnemonic>,
+    comments: Vec<String>,
+  ) -> Self {
+    return Self {
+      strt,
+      stop,
+      step,
+      null,
+      comp,
+      well,
+      fld,
+      loc,
+      prov,
+      cnty,
+      stat,
+      ctry,
+      srvc,
+      date,
+      uwi,
+      api,
+      additional,
+      comments,
+      is_parsed: true,
+    };
+  }
+}
+
+impl Serialize for WellInformation {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    // Estimate number of fields: 17 known + additional + comments
+    let mut map = serializer.serialize_map(Some(17 + self.additional.len() + 1))?;
+
+    macro_rules! serialize_field {
+      ($map:ident, $field:expr, $name:expr) => {
+        $map.serialize_entry($name, &$field)?
+      };
+    }
+
+    serialize_field!(map, self.strt, "STRT");
+    serialize_field!(map, self.stop, "STOP");
+    serialize_field!(map, self.step, "STEP");
+    serialize_field!(map, self.null, "NULL");
+    serialize_field!(map, self.comp, "COMP");
+    serialize_field!(map, self.well, "WELL");
+    serialize_field!(map, self.fld, "FLD");
+    serialize_field!(map, self.loc, "LOC");
+    serialize_field!(map, self.prov, "PROV");
+    serialize_field!(map, self.cnty, "CNTY");
+    serialize_field!(map, self.stat, "STAT");
+    serialize_field!(map, self.ctry, "CTRY");
+    serialize_field!(map, self.srvc, "SRVC");
+    serialize_field!(map, self.date, "DATE");
+    serialize_field!(map, self.uwi, "UWI");
+    serialize_field!(map, self.api, "API");
+
+    for mnemonic in &self.additional {
+      map.serialize_entry(&mnemonic.name, mnemonic)?;
+    }
+
+    map.serialize_entry("comments", &self.comments)?;
+    return map.end();
   }
 }

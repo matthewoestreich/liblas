@@ -21,6 +21,7 @@ pub enum LibLasError {
   AsciiLogDataNotLastSection,
   ConvertingToJson(String),
   CurveInfoRequiredToParseAsciiLogData,
+  GeneralError(String),
 }
 
 impl error::Error for LibLasError {}
@@ -42,6 +43,7 @@ impl Display for LibLasError {
     use LibLasError::*;
     #[allow(clippy::implicit_return)]
     match self {
+      GeneralError(message) => write!(f, "{message}"),
       IoError(err) => write!(f, "{err}"),
       ParseFloatError(err) => write!(f, "{err}"),
       InvalidLasFile(reason) => write!(f, "Invalid .las file! {reason}"),

@@ -15,3 +15,38 @@ pub enum Section {
   Curve,
   None,
 }
+
+pub struct Token {}
+#[allow(non_snake_case)]
+impl Token {
+  pub fn Colon() -> String {
+    return ":".into();
+  }
+  pub fn Period() -> String {
+    return ".".into();
+  }
+  pub fn Tilde() -> String {
+    return "~".into();
+  }
+  pub fn Comment() -> String {
+    return "#".into();
+  }
+  pub fn AsciiSection() -> String {
+    return "~A".into();
+  }
+  pub fn VersionInformationSection() -> String {
+    return "~V".into();
+  }
+  pub fn WellInformationSection() -> String {
+    return "~W".into();
+  }
+  pub fn ParameterInformationSection() -> String {
+    return "~P".into();
+  }
+  pub fn OtherSection() -> String {
+    return "~O".into();
+  }
+  pub fn CurveInformationSection() -> String {
+    return "~C".into();
+  }
+}
