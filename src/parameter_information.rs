@@ -55,11 +55,11 @@ impl ParameterInformation {
     return Ok(this);
   }
 
-  pub fn new(parameters: Vec<Mnemonic>, comments: Vec<String>, is_parsed: bool) -> Self {
+  pub fn new(parameters: Vec<Mnemonic>, comments: Vec<String>) -> Self {
     return Self {
       parameters,
       comments,
-      is_parsed,
+      is_parsed: false,
     };
   }
 }

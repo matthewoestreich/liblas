@@ -288,7 +288,7 @@ impl WellInformation {
       api,
       additional,
       comments,
-      is_parsed: true,
+      is_parsed: false,
     };
   }
 }

@@ -48,11 +48,11 @@ impl CurveInformation {
     return Ok(this);
   }
 
-  pub fn new(curves: Vec<Mnemonic>, comments: Vec<String>, is_parsed: bool) -> Self {
+  pub fn new(curves: Vec<Mnemonic>, comments: Vec<String>) -> Self {
     return Self {
       curves,
       comments,
-      is_parsed,
+      is_parsed: false,
     };
   }
 }

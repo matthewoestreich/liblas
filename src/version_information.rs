@@ -56,13 +56,13 @@ impl VersionInformation {
     return Ok(this);
   }
 
-  pub fn new(version: Mnemonic, wrap: Mnemonic, extra: Vec<Mnemonic>, comments: Vec<String>, is_parsed: bool) -> Self {
+  pub fn new(version: Mnemonic, wrap: Mnemonic, extra: Vec<Mnemonic>, comments: Vec<String>) -> Self {
     return Self {
       version,
       wrap,
       additional: extra,
       comments,
-      is_parsed,
+      is_parsed: false,
     };
   }
 }

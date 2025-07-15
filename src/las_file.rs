@@ -143,4 +143,22 @@ impl LasFile {
     }
     return Ok(comments);
   }
+
+  pub fn new(
+    version_information: VersionInformation,
+    well_information: WellInformation,
+    curve_information: CurveInformation,
+    ascii_log_data: AsciiLogData,
+    other_information: Option<OtherInformation>,
+    parameter_information: Option<ParameterInformation>,
+  ) -> Self {
+    return Self {
+      version_information,
+      well_information,
+      curve_information,
+      ascii_log_data,
+      other_information,
+      parameter_information,
+    };
+  }
 }

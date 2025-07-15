@@ -48,11 +48,11 @@ impl OtherInformation {
     return Ok(this);
   }
 
-  pub fn new(text: String, comments: Vec<String>, is_parsed: bool) -> Self {
+  pub fn new(text: String, comments: Vec<String>) -> Self {
     return Self {
       text,
       comments,
-      is_parsed,
+      is_parsed: false,
     };
   }
 }
