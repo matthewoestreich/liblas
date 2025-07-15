@@ -1,13 +1,3 @@
-use crate::{
-  CurveInformation,
-  LibLasError::{self, *},
-};
-use serde::{
-  Deserialize, Deserializer, Serialize,
-  ser::{SerializeMap, Serializer},
-};
-use std::collections::HashMap;
-
 /*
 ~A (ASCII Log Data)
 • The data section will always be the last section in a file.
@@ -21,8 +11,18 @@ data and the same width of all data fields is highly recommended.
 • In wrap mode, a line of data will be no longer than 80 characters. This includes a carriage return
 and line feed
 */
+use crate::{
+  CurveInformation,
+  LibLasError::{self, *},
+  PeekableFileReader,
+};
+use serde::{
+  self, Deserialize, Deserializer, Serialize,
+  ser::{SerializeMap, Serializer},
+};
+use std::collections::HashMap;
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AsciiColumn {
   #[serde(rename = "NAME")]
   pub name: String,
@@ -30,67 +30,97 @@ pub struct AsciiColumn {
   pub data: Vec<f64>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct AsciiLogData {
   pub columns: Vec<AsciiColumn>,
+  pub(crate) is_parsed: bool,
+}
+
+impl Default for AsciiLogData {
+  fn default() -> Self {
+    return Self {
+      columns: vec![],
+      is_parsed: false,
+    };
+  }
 }
 
 impl AsciiLogData {
-  pub fn from_lines(lines: Vec<String>, curve_info: &CurveInformation) -> Result<Self, LibLasError> {
-    let mut iter = lines.into_iter();
-
-    let header_line = iter
+  pub fn parse(
+    reader: &mut PeekableFileReader,
+    header_line: String,
+    curve_info: &CurveInformation,
+  ) -> Result<Self, LibLasError> {
+    // For pulling headers from "~A" header line. Example "~A" line (as string):
+    //        "~A  Depth        GR        AMP3FT      TT3FT       AMPS1"
+    // In "minified" versions of .las files, the headers (everything after "~A") may not exist.
+    // This means that the "~Curve Information" section is required.
+    // This is why we have to pass in curve info to the `parse` method. In case we need it.
+    // If we are in a minified las file we need to pull the headers from the "~Curve Information" instead.
+    let mut header_tokens = header_line.split_whitespace();
+    let first_token = header_tokens
       .next()
-      .ok_or(MalformedAsciiData("No header line found".to_string()))?;
-
-    let mut tokens = header_line.split_whitespace();
-    let first_token = tokens
-      .next()
-      .ok_or(MalformedAsciiData("Empty header line".to_string()))?;
+      .ok_or(MalformedAsciiData("Empty header line".into()))?;
     if first_token != "~A" {
-      return Err(MalformedAsciiData("Header line must start with ~A".to_string()));
+      return Err(MalformedAsciiData("Header line must start with ~A".into()));
+    }
+    let mut column_names: Vec<String> = header_tokens.map(|s| return s.to_string()).collect();
+    if column_names.is_empty() {
+      if curve_info.curves.is_empty() {
+        return Err(InvalidLasFile("Missing '~Curve Information'. If a .las file excludes ASCII Log Data headers, a '~Curve Information' section is required!".into()));
+      }
+      column_names = curve_info.curves.iter().map(|c| return c.name.to_string()).collect();
     }
 
-    let mut column_names: Vec<String> = tokens.map(|s| return s.to_string()).collect();
+    // This is where the real processing of log data begins.
+    let mut this = AsciiLogData {
+      columns: column_names
+        .into_iter()
+        .map(|name| return AsciiColumn { name, data: Vec::new() })
+        .collect(),
+      is_parsed: true,
+    };
 
-    if column_names.is_empty() {
-      if curve_info.0.is_empty() {
-        return Err(MalformedAsciiData(
-          "No column headers and no curve info to infer from".to_string(),
-        ));
+    while let Some(Ok(peeked_line)) = reader.peek() {
+      if peeked_line.starts_with('~') {
+        break;
       }
 
-      column_names = curve_info.0.keys().cloned().collect();
-    }
+      let next_line = reader.next().ok_or(ReadingNextLine)??;
 
-    let mut columns: Vec<AsciiColumn> = column_names
-      .into_iter()
-      .map(|name| return AsciiColumn { name, data: Vec::new() })
-      .collect();
+      // TODO : SKIPPING COMMENTS FOR NOW
+      if next_line.starts_with("#") {
+        continue;
+      }
 
-    for line in iter {
-      let values: Vec<&str> = line.split_whitespace().collect();
+      let values: Vec<&str> = next_line.split_whitespace().collect();
 
-      if values.len() != columns.len() {
+      if values.len() != this.columns.len() {
         return Err(MalformedAsciiData(format!(
           "Data row length '{}' does not match column count '{}'",
           values.len(),
-          columns.len(),
+          this.columns.len(),
         )));
       }
 
-      for (col, val_str) in columns.iter_mut().zip(values.iter()) {
-        let val: f64 = match val_str.parse() {
-          Ok(num) => num,
-          Err(_) => {
-            return Err(MalformedAsciiData(format!("Invalid float value: '{val_str}'")));
-          }
-        };
-        col.data.push(val);
+      // Since we parse row by row, we 'zip' the header up with each data row.
+      // This way we know which header to put each part of the data row into.
+      for (col, val_str) in this.columns.iter_mut().zip(values.iter()) {
+        col.data.push(val_str.parse()?); // Parse string into float64
       }
     }
 
-    return Ok(AsciiLogData { columns });
+    // Since ASCII Log Data is required to be last section in las files,
+    // if we encounter anything other than a comment here, we error out.
+    while let Some(Ok(nl)) = reader.next() {
+      if nl.starts_with("#") {
+        continue;
+      }
+      return Err(InvalidLasFile(
+        "ASCII Log Data must be the last section in a .las file!".into(),
+      ));
+    }
+    return Ok(this);
   }
 }
 
@@ -117,6 +147,9 @@ impl<'de> Deserialize<'de> for AsciiLogData {
       .into_iter()
       .map(|(name, data)| return AsciiColumn { name, data })
       .collect();
-    return Ok(AsciiLogData { columns });
+    return Ok(AsciiLogData {
+      columns,
+      is_parsed: true,
+    });
   }
 }

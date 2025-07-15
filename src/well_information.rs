@@ -81,7 +81,7 @@
   DATE. 13-DEC-86 :LOG DATE
   UWI . 100123401234W500 :UNIQUE WELL ID
 */
-use crate::{LibLasError, Mnemonic, errors::LibLasError::*};
+use crate::{LibLasError, Mnemonic, PeekableFileReader, errors::LibLasError::*};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -121,63 +121,76 @@ pub struct WellInformation {
   pub api: Mnemonic,
   #[serde(flatten)]
   pub extra: HashMap<String, Mnemonic>,
+  #[serde(skip)]
+  pub is_parsed: bool,
 }
 
 impl WellInformation {
-  pub fn from_lines(lines: Vec<String>) -> Result<WellInformation, LibLasError> {
-    let mut wi = WellInformation::default();
+  pub fn parse(reader: &mut PeekableFileReader) -> Result<WellInformation, LibLasError> {
+    let mut this = WellInformation::default();
 
-    for line in lines {
+    while let Some(Ok(peeked_line)) = reader.peek() {
+      if peeked_line.starts_with("~") {
+        break;
+      }
+
+      let line = reader.next().ok_or(ReadingNextLine)??;
+
+      // TODO : SKIPPING COMMENTS FOR NOW
+      if line.starts_with("#") {
+        continue;
+      }
+
       if line.starts_with("STRT") {
-        wi.strt = Mnemonic::from_line(&line)?;
+        this.strt = Mnemonic::from_line(&line)?;
       } else if line.starts_with("STOP") {
-        wi.stop = Mnemonic::from_line(&line)?;
+        this.stop = Mnemonic::from_line(&line)?;
       } else if line.starts_with("STEP") {
-        wi.step = Mnemonic::from_line(&line)?;
+        this.step = Mnemonic::from_line(&line)?;
       } else if line.starts_with("NULL") {
-        wi.null = Mnemonic::from_line(&line)?;
+        this.null = Mnemonic::from_line(&line)?;
       } else if line.starts_with("COMP") {
-        wi.comp = Mnemonic::from_line(&line)?;
+        this.comp = Mnemonic::from_line(&line)?;
       } else if line.starts_with("WELL") {
-        wi.well = Mnemonic::from_line(&line)?;
+        this.well = Mnemonic::from_line(&line)?;
       } else if line.starts_with("FLD") {
-        wi.fld = Mnemonic::from_line(&line)?;
+        this.fld = Mnemonic::from_line(&line)?;
       } else if line.starts_with("LOC") {
-        wi.loc = Mnemonic::from_line(&line)?;
+        this.loc = Mnemonic::from_line(&line)?;
       } else if line.starts_with("PROV") {
-        wi.prov = Mnemonic::from_line(&line)?;
+        this.prov = Mnemonic::from_line(&line)?;
       } else if line.starts_with("CNTY") {
-        wi.cnty = Mnemonic::from_line(&line)?;
+        this.cnty = Mnemonic::from_line(&line)?;
       } else if line.starts_with("STAT") {
-        wi.stat = Mnemonic::from_line(&line)?;
+        this.stat = Mnemonic::from_line(&line)?;
       } else if line.starts_with("CTRY") {
-        wi.ctry = Mnemonic::from_line(&line)?;
+        this.ctry = Mnemonic::from_line(&line)?;
       } else if line.starts_with("SRVC") {
-        wi.srvc = Mnemonic::from_line(&line)?;
+        this.srvc = Mnemonic::from_line(&line)?;
       } else if line.starts_with("DATE") {
-        wi.date = Mnemonic::from_line(&line)?;
+        this.date = Mnemonic::from_line(&line)?;
       } else if line.starts_with("UWI") {
-        wi.uwi = Mnemonic::from_line(&line)?;
+        this.uwi = Mnemonic::from_line(&line)?;
       } else if line.starts_with("API") {
-        wi.api = Mnemonic::from_line(&line)?;
+        this.api = Mnemonic::from_line(&line)?;
       } else {
         let x = Mnemonic::from_line(&line)?;
-        wi.extra.insert(x.name.clone(), x);
+        this.extra.insert(x.name.clone(), x);
       }
     }
 
     // Validate required fields
     let required = [
-      ("STRT", &wi.strt),
-      ("STOP", &wi.stop),
-      ("STEP", &wi.step),
-      ("NULL", &wi.null),
-      ("COMP", &wi.comp),
-      ("WELL", &wi.well),
-      ("FLD", &wi.fld),
-      ("LOC", &wi.loc),
-      ("SRVC", &wi.srvc),
-      ("DATE", &wi.date),
+      ("STRT", &this.strt),
+      ("STOP", &this.stop),
+      ("STEP", &this.step),
+      ("NULL", &this.null),
+      ("COMP", &this.comp),
+      ("WELL", &this.well),
+      ("FLD", &this.fld),
+      ("LOC", &this.loc),
+      ("SRVC", &this.srvc),
+      ("DATE", &this.date),
       //////////////////////
       //("PROV", &wi.prov), | -------------------------------------------
       //("CNTY", &wi.cnty), | One of PROV, CNTY, STAT, CTRY must exist!
@@ -199,10 +212,10 @@ impl WellInformation {
     }
 
     let one_of_prov_cnty_ctry_state_must_exist = [(
-      ("PROV", &wi.prov),
-      ("CTRY", &wi.ctry),
-      ("CNTY", &wi.cnty),
-      ("STAT", &wi.stat),
+      ("PROV", &this.prov),
+      ("CTRY", &this.ctry),
+      ("CNTY", &this.cnty),
+      ("STAT", &this.stat),
     )];
 
     for (pair_a, pair_b, pair_c, pair_d) in one_of_prov_cnty_ctry_state_must_exist.iter() {
@@ -216,11 +229,12 @@ impl WellInformation {
       }
     }
 
-    if wi.uwi.name.trim().is_empty() && wi.api.name.trim().is_empty() {
+    if this.uwi.name.trim().is_empty() && this.api.name.trim().is_empty() {
       let e = "[~Well Information] Must have one of API or UWI! ->".to_owned();
       return Err(MissingRequiredMnemonicField(e));
     }
 
-    return Ok(wi);
+    this.is_parsed = true;
+    return Ok(this);
   }
 }

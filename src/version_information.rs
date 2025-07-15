@@ -1,4 +1,7 @@
-use crate::{LibLasError, Mnemonic};
+use crate::{
+  LibLasError::{self, ReadingNextLine},
+  Mnemonic, PeekableFileReader,
+};
 use serde::{self, Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -10,23 +13,37 @@ pub struct VersionInformation {
   pub wrap: Mnemonic,
   #[serde(flatten)]
   pub extra: HashMap<String, Mnemonic>,
+  #[serde(skip)]
+  pub(crate) is_parsed: bool,
 }
 
 impl VersionInformation {
-  pub fn from_lines(lines: Vec<String>) -> Result<VersionInformation, LibLasError> {
-    let mut vi = VersionInformation::default();
+  pub fn parse(reader: &mut PeekableFileReader) -> Result<VersionInformation, LibLasError> {
+    let mut this = VersionInformation::default();
 
-    for line in lines {
-      if line.starts_with("VERS") {
-        vi.version = Mnemonic::from_line(&line)?;
-      } else if line.starts_with("WRAP") {
-        vi.wrap = Mnemonic::from_line(&line)?;
+    while let Some(Ok(peeked_line)) = reader.peek() {
+      if peeked_line.starts_with("~") {
+        break;
+      }
+
+      let next_line = reader.next().ok_or(ReadingNextLine)??;
+
+      // TODO : SKIPPING COMMENTS FOR NOW
+      if next_line.starts_with("#") {
+        continue;
+      }
+
+      if next_line.starts_with("VERS") {
+        this.version = Mnemonic::from_line(&next_line)?;
+      } else if next_line.starts_with("WRAP") {
+        this.wrap = Mnemonic::from_line(&next_line)?;
       } else {
-        let x = Mnemonic::from_line(&line)?;
-        vi.extra.insert(x.name.clone(), x);
+        let x = Mnemonic::from_line(&next_line)?;
+        this.extra.insert(x.name.clone(), x);
       }
     }
 
-    return Ok(vi);
+    this.is_parsed = true;
+    return Ok(this);
   }
 }

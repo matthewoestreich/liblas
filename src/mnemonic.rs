@@ -1,21 +1,21 @@
 use crate::LibLasError::{self, *};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MnemonicData {
   Float(f64),
   Text(String),
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Mnemonic {
   // Name of mnemonic
   pub name: String,
   // Unit of measurement (eg. FT (feet), DEGF (degrees farenheit))
   pub unit: Option<String>,
-  // Data mnemonic holds
-  pub data: MnemonicData,
+  // Value for this mnemonic
+  pub value: MnemonicData,
   // Description of mnemonic
   pub description: String,
 }
@@ -57,7 +57,7 @@ impl Mnemonic {
       }
     };
 
-    let data = if data_str.is_empty() {
+    let value = if data_str.is_empty() {
       MnemonicData::Text("".to_string())
     } else if let Ok(f) = data_str.parse::<f64>() {
       MnemonicData::Float(f)
@@ -68,7 +68,7 @@ impl Mnemonic {
     return Ok(Mnemonic {
       name,
       unit: unit.filter(|u| return !u.is_empty()),
-      data,
+      value,
       description,
     });
   }
