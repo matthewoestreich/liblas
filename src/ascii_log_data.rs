@@ -51,28 +51,7 @@ impl AsciiLogData {
     header_line: String,
     curve_info: &CurveInformation,
   ) -> Result<Self, LibLasError> {
-    // For pulling headers from "~A" header line. Example "~A" line (as string):
-    //        "~A  Depth        GR        AMP3FT      TT3FT       AMPS1"
-    // In "minified" versions of .las files, the headers (everything after "~A") may not exist.
-    // This means that the "~Curve Information" section is required.
-    // This is why we have to pass in curve info to the `parse` method. In case we need it.
-    // If we are in a minified las file we need to pull the headers from the "~Curve Information" instead.
-    let mut header_tokens = header_line.split_whitespace();
-    let first_token = header_tokens
-      .next()
-      .ok_or(MalformedAsciiData("Empty header line".into()))?;
-    if first_token != "~A" {
-      return Err(MalformedAsciiData("Header line must start with ~A".into()));
-    }
-    let mut column_names: Vec<String> = header_tokens.map(|s| return s.to_string()).collect();
-    if column_names.is_empty() {
-      if curve_info.curves.is_empty() {
-        return Err(InvalidLasFile("Missing '~Curve Information'. If a .las file excludes ASCII Log Data headers, a '~Curve Information' section is required!".into()));
-      }
-      column_names = curve_info.curves.iter().map(|c| return c.name.to_string()).collect();
-    }
-
-    // This is where the real processing of log data begins.
+    let column_names = Self::parse_header(header_line, curve_info)?;
     let mut this = AsciiLogData {
       columns: column_names
         .into_iter()
@@ -121,6 +100,42 @@ impl AsciiLogData {
       ));
     }
     return Ok(this);
+  }
+
+  fn parse_header(header_line: String, curve_info: &CurveInformation) -> Result<Vec<String>, LibLasError> {
+    // For pulling headers from "~A" header line. Example "~A" line (as string):
+    //        "~A  Depth        GR        AMP3FT      TT3FT       AMPS1"
+    // In "minified" versions of .las files, the headers (everything after "~A") may not exist.
+    // This means that the "~Curve Information" section is required.
+    // This is why we have to pass in curve info to the `parse` method. In case we need it.
+    // If we are in a minified las file we need to pull the headers from the "~Curve Information" instead.
+    let mut header_tokens = header_line.split_whitespace();
+    let first_token = header_tokens
+      .next()
+      .ok_or(MalformedAsciiData("Empty header line".into()))?;
+    if first_token != "~A" {
+      return Err(MalformedAsciiData("Header line must start with ~A".into()));
+    }
+
+    let mut column_names: Vec<String> = header_tokens.map(|s| return s.to_string()).collect();
+    if column_names.is_empty() {
+      if curve_info.curves.is_empty() {
+        return Err(InvalidLasFile("Missing '~Curve Information'. If a .las file excludes ASCII Log Data headers, a '~Curve Information' section is required!".into()));
+      }
+      column_names = curve_info.curves.iter().map(|c| return c.name.to_string()).collect();
+    }
+
+    // From the LAS specification : "The index curve (i.e. first curve) must be depth, time or index.
+    // The only valid mnemonics for the index channel are DEPT, DEPTH, TIME, or INDEX."
+    let valid_index_channel_names: Vec<String> = vec!["DEPT".into(), "DEPTH".into(), "TIME".into(), "INDEX".into()];
+    if !valid_index_channel_names.contains(&column_names[0]) {
+      return Err(InvalidLasFile(
+        "The index curve (i.e. first curve) must be depth ('DEPT' or 'DEPTH'), time ('TIME') or index ('INDEX')."
+          .into(),
+      ));
+    }
+
+    return Ok(column_names);
   }
 }
 

@@ -13,6 +13,7 @@ pub struct VersionInformation {
   pub wrap: Mnemonic,
   #[serde(flatten)]
   pub extra: HashMap<String, Mnemonic>,
+  pub comments: String,
   #[serde(skip)]
   pub(crate) is_parsed: bool,
 }

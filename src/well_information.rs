@@ -121,6 +121,7 @@ pub struct WellInformation {
   pub api: Mnemonic,
   #[serde(flatten)]
   pub extra: HashMap<String, Mnemonic>,
+  pub comments: String,
   #[serde(skip)]
   pub(crate) is_parsed: bool,
 }
