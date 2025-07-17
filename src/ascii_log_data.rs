@@ -1,16 +1,3 @@
-/*
-~A (ASCII Log Data)
-• The data section will always be the last section in a file.
-• Only one "~A" section can occur in an LAS 2.0 file.
-• Embedded blank lines anywhere in the section are forbidden
-• Each column of data must be separated by at least one space. Consistency of format on every
-line, while not required, is expected by many LAS readers. Right Justification of each column of
-data and the same width of all data fields is highly recommended.
-• Line length in the data section of unwrapped files are no longer restricted
-• In wrap mode, the index channel will be on its own line
-• In wrap mode, a line of data will be no longer than 80 characters. This includes a carriage return
-and line feed
-*/
 use crate::{
   CurveInformation,
   LibLasError::{self, *},
@@ -41,6 +28,9 @@ pub struct AsciiLogData {
   pub comments: Vec<String>,
   #[serde(skip)]
   pub(crate) is_parsed: bool,
+  #[serde(skip)]
+  #[allow(dead_code)]
+  pub(crate) has_column_names: bool,
 }
 
 impl Default for AsciiLogData {
@@ -49,6 +39,7 @@ impl Default for AsciiLogData {
       data: vec![],
       comments: vec![],
       is_parsed: false,
+      has_column_names: true,
     };
   }
 }
@@ -60,7 +51,9 @@ impl AsciiLogData {
     curve_info: &CurveInformation,
     current_comments: &mut Vec<String>,
   ) -> Result<Self, LibLasError> {
+    let header = header_line.clone();
     let column_names = Self::parse_header(header_line, curve_info)?;
+
     let mut this = Self {
       comments: vec![],
       data: column_names
@@ -68,6 +61,7 @@ impl AsciiLogData {
         .map(|name| return AsciiColumn { name, data: Vec::new() })
         .collect(),
       is_parsed: true,
+      has_column_names: header.split_whitespace().nth(1).is_some(),
     };
 
     // Comments were above the "~A" section
@@ -108,10 +102,7 @@ impl AsciiLogData {
 
     // Since ASCII Log Data is required to be last section in las files,
     // if we encounter anything after ASCII data here, we error out.
-    // From the spec: (outlining how not even comments are allowed after ~A)
-    // - "#" (pound): The ASCII equivalent of this flag is decimal 35. This character is recognized as a
-    //   flag when it occurs as the first non-space character on a line. This flag is used to indicate
-    //   that the line is a comment line. **Comment lines can appear anywhere above the ~A section**
+    // From the spec: "Comment lines can appear anywhere above the ~A section"
     if reader.next().is_some() {
       return Err(InvalidLasFile(
         "ASCII Log Data must be the last section in a .las file!".into(),
@@ -124,8 +115,6 @@ impl AsciiLogData {
     // For pulling headers from "~A" header line. Example "~A" line (as string):
     //        "~A  Depth        GR        AMP3FT      TT3FT       AMPS1"
     // In "minified" versions of .las files, the headers (everything after "~A") may not exist.
-    // This means that the "~Curve Information" section is required.
-    // This is why we have to pass in curve info to the `parse` method. In case we need it.
     // If we are in a minified las file we need to pull the headers from the "~Curve Information" instead.
     let mut header_tokens = header_line.split_whitespace();
     let first_token = header_tokens
@@ -143,9 +132,8 @@ impl AsciiLogData {
       column_names = curve_info.curves.iter().map(|c| return c.name.to_string()).collect();
     }
 
-    // From the LAS specification : >>"The index curve (i.e. first curve) must be depth, time or index.
-    // The only valid mnemonics for the index channel are DEPT, DEPTH, TIME, or INDEX.".<<
-    // Since I do not believe casing is a concern, we normalize to lower case.
+    // From the LAS specification:
+    // "The index curve (i.e. first curve) must be depth (DEPT|DEPTH), time (TIME) or index (INDEX).
     let valid_index_channel_names: Vec<String> = vec!["dept".into(), "depth".into(), "time".into(), "index".into()];
     if !valid_index_channel_names.contains(&column_names[0].to_lowercase()) {
       return Err(InvalidLasFile(
@@ -157,11 +145,45 @@ impl AsciiLogData {
     return Ok(column_names);
   }
 
+  pub fn to_str(&self) -> String {
+    let num_rows = self.data[0].data.len();
+    let num_cols = self.data.len();
+
+    let mut result = String::from("~A ");
+    if self.has_column_names {
+      for (i, col) in self.data.iter().enumerate() {
+        result.push_str(&format!("{:<10}", col.name)); // 10-character padded name
+        if i != num_cols - 1 {
+          result.push(' ');
+        }
+      }
+    }
+    result.push('\n');
+
+    for row_idx in 0..num_rows {
+      for col_idx in 0..num_cols {
+        let val = self.data[col_idx].data[row_idx];
+        result.push_str(&format!("{val:<10.4}")); // width 10, 4 decimals
+        if col_idx != num_cols - 1 {
+          result.push(' ');
+        }
+      }
+      result.push('\n');
+    }
+
+    if !self.comments.is_empty() {
+      result = format!("{}\n{result}", self.comments.join("\n"));
+    }
+
+    return result;
+  }
+
   pub fn new(data: Vec<AsciiColumn>, comments: Vec<String>) -> Self {
     return Self {
       data,
       comments,
       is_parsed: false,
+      has_column_names: true,
     };
   }
 }

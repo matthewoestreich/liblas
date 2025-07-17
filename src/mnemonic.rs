@@ -4,25 +4,12 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-/**
- - [[[MNEM]]] = mnemonic. This mnemonic can be of any length but must not contain any internal
-   spaces, dots, or colons. Spaces are permitted in front of the mnemonic and between the
-   end of the mnemonic and the dot.
- - [[[UNITS]]] = units of the mnemonic (if applicable). The units, if used, must be located directly
-   after the dot. There must be no spaces between the units and the dot. The units can be of
-   any length but must not contain any colons or internal spaces.
- - [[[DATA]]] = value of, or data relating to the mnemonic. This value or input can be of any length
-   and can contain spaces, dots or colons as appropriate. It must be preceded by at least one
-   space to demarcate it from the units and must be to the left of the last colon in the line.
- - [[[DESCRIPTION]]] = description or definition of the mnemonic. It is always located to the right
-   of the last colon. The length of the line is no longer limited.
-*/
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MnemonicData {
   Float(f64),
   Text(String),
+  Int(i64),
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -91,13 +78,52 @@ impl Mnemonic {
 
     this.value = if data_str.is_empty() {
       MnemonicData::Text("".to_string())
-    } else if let Ok(f) = data_str.parse::<f64>() {
+    } else if let Ok(i) = data_str.parse::<i64>() {
+      MnemonicData::Int(i)
+    } else if data_str.contains('.')
+      && let Ok(f) = data_str.parse::<f64>()
+    {
       MnemonicData::Float(f) // Try to parse value to float
     } else {
       MnemonicData::Text(data_str.to_string()) // Otherwise it is a string
     };
 
     return Ok(this);
+  }
+
+  fn unit_to_string(&self) -> String {
+    return match &self.unit {
+      Some(v) => v.into(),
+      None => " ".into(),
+    };
+  }
+
+  fn value_to_string(&self) -> String {
+    return match &self.value {
+      MnemonicData::Int(i) => i.to_string(),
+      MnemonicData::Float(f) => {
+        if f.fract() == 0.0 {
+          format!("{f:.1}")
+        } else {
+          f.to_string()
+        }
+      }
+      MnemonicData::Text(t) => t.to_string(),
+    };
+  }
+
+  pub fn to_str(&self) -> String {
+    let mut output = String::new();
+    if !self.comments.is_empty() {
+      output = format!("{}\n", self.comments.join("\n"));
+    }
+    return format!(
+      "{output}{}.{} {} : {}",
+      self.name,
+      self.unit_to_string(),
+      self.value_to_string(),
+      self.description
+    );
   }
 
   pub fn new(name: String, unit: Option<String>, value: MnemonicData, description: String) -> Self {

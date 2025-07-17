@@ -93,6 +93,8 @@ println!("curve_depth={curve_depth:?}");
 
 If you wanted to reconstruct our example .las file, but programmatically, here is how you can accomplish that.
 
+Export to .json or .las as well!
+
 ```rust
 let version_info = VersionInformation::new(
   Mnemonic::new("VERS".into(), None, MnemonicData::Float(2.0), "CWLS LOG ASCII STANDARD -VERSION 2.0".into()),
@@ -171,4 +173,5 @@ let other_info = OtherInformation::new(
 let las_file = LasFile::new(version_info, well_info, curve_info, ascii_data, Some(other_info), Some(param_info));
 
 let json = las_file.to_json_str()?;
+let las = las_file.to_las_str();
 ```

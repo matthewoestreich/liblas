@@ -4,15 +4,6 @@ use crate::{
 };
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 
-/*
-• This section is optional. It defines the input values of various parameters relating to this well.
-• These input values can consist of numbers or text.
-• Only one "~P" section can occur in an LAS 2.0 file.
-• The mnemonics used are not restricted but must be defined on the line on which they appear.
-• There is no limit on the number of lines that can be used.
-• The following is an example of a Parameter Information Section.
-*/
-
 #[derive(Debug, Default, Deserialize)]
 pub struct ParameterInformation {
   pub parameters: Vec<Mnemonic>,
@@ -22,10 +13,7 @@ pub struct ParameterInformation {
 }
 
 impl ParameterInformation {
-  pub fn parse(
-    reader: &mut PeekableFileReader,
-    current_comments: &mut Vec<String>,
-  ) -> Result<Self, LibLasError> {
+  pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
     let mut this = Self::default();
 
     // Comments were above the "~Parameter Info" line
@@ -53,6 +41,23 @@ impl ParameterInformation {
 
     this.is_parsed = true;
     return Ok(this);
+  }
+
+  pub fn to_str(&self) -> Option<String> {
+    if self.comments.is_empty() && self.parameters.is_empty() {
+      return None;
+    }
+    let mut output = "~Parameter Information".to_string();
+    if !self.comments.is_empty() {
+      output = format!("{}\n{output}", self.comments.join(" "));
+    }
+    if !self.parameters.is_empty() {
+      self
+        .parameters
+        .iter()
+        .for_each(|a| output = format!("{output}\n{}", a.to_str()));
+    }
+    return Some(output);
   }
 
   pub fn new(parameters: Vec<Mnemonic>, comments: Vec<String>) -> Self {

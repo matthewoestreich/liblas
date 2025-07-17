@@ -1,148 +1,80 @@
-use std::fs;
-
+use clap::Parser;
 use liblas::*;
+use std::{
+  fs::{OpenOptions, create_dir_all},
+  io::Write,
+  path::PathBuf,
+  process::exit,
+};
 
-fn main() -> Result<(), LibLasError> {
-  /*
-  let example_las = LasFile::parse("tests/las/example.las".into())?;
-  let json = example_las.to_json_str()?;
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+  /// Relative to binary location.
+  /// Path to .las file.
+  #[arg(short, long, required = true)]
+  las: String,
 
-  let well_info = example_las.well_information;
-  let well_info_strt = well_info.strt;
+  /// Relative to binary location.
+  /// Output path with file name ending in .json.
+  /// Only new files will be automatically created!
+  /// If the path contains non-existent directories, you will need to use the '--force' switch.
+  #[arg(short, long, required = true)]
+  out: String,
 
-  let curve_info = example_las.curve_information;
-  //println!("{:#?}", curve_info.curves);
-  let curve_depth = curve_info.curves
-    .iter()
-    .find(|c| c.description.contains("DEPTH"));
-  println!("curve_depth={curve_depth:?}");
-
-  fs::write("json_las/example.json", json)?;
-  */
-
-  let version_info = VersionInformation::new(
-    Mnemonic::new("VERS".into(), None, MnemonicData::Float(2.0), "CWLS LOG ASCII STANDARD -VERSION 2.0".into()),
-    Mnemonic::new("WRAP".into(), None, MnemonicData::Text("NO".into()), "ONE LINE PER DEPTH STEP".into()),
-    vec![],
-    vec![]
-  );
-
-  let well_info = WellInformation::new(
-    Mnemonic::new("STRT".into(), Some("M".into()), MnemonicData::Float(1670.0), "START DEPTH".into()),
-    Mnemonic::new("STOP".into(), Some("M".into()), MnemonicData::Float(1669.7500), "STOP DEPTH".into()),
-    Mnemonic::new("STEP".into(), Some("M".into()), MnemonicData::Float(-0.1250), "STEP".into()),
-    Mnemonic::new("NULL".into(), None, MnemonicData::Float(-999.25), "NULL VALUE".into()),
-    Mnemonic::new("COMP".into(), None, MnemonicData::Text("ANY OIL COMPANY INC.".into()), "COMPANY".into()),
-    Mnemonic::new("WELL".into(), None, MnemonicData::Text("ANY ET AL 12-34-12-34".into()), "WELL".into()),
-    Mnemonic::new("FLD".into(), None, MnemonicData::Text("WILDCAT".into()), "FIELD".into()),
-    Mnemonic::new("LOC".into(), None, MnemonicData::Text("12-34-12-34W5M".into()), "LOCATION".into()),
-    Mnemonic::new("PROV".into(), None, MnemonicData::Text("ALBERTA".into()), "PROVINCE".into()),
-    Mnemonic::new("SRVC".into(), None, MnemonicData::Text("ANY LOGGING COMPANY INC.".into()), "SERVICE COMPANY".into()),
-    Mnemonic::new("DATE".into(), None, MnemonicData::Text("13-DEC-86".into()), "LOG DATE".into()),
-    Mnemonic::new("UWI".into(), None, MnemonicData::Text("100123401234W500".into()), "UNIQUE WELL ID".into()),
-    Mnemonic::default(),
-    Mnemonic::default(),
-    Mnemonic::default(),
-    Mnemonic::default(),
-    vec![Mnemonic::new("LIC".into(), None, MnemonicData::Text("23412".into()), "ERCB LICENCE NUMB".into())],
-    vec![],
-  );
-
-  let curve_info = CurveInformation::new(
-    vec![
-      Mnemonic::new("DEPT".into(), Some("M".into()), MnemonicData::Text("".into()), "1 DEPTH".into()),
-      Mnemonic::new("DT".into(), Some("US/M".into()), MnemonicData::Text("60 520 32 00".into()), "2 SONIC TRANSIT TIME".into()),
-      Mnemonic::new("RHOB".into(), Some("K/M3".into()), MnemonicData::Text("45 350 01 00".into()), "3 BULK DENSITY".into()),
-      Mnemonic::new("NPHI".into(), Some("V/V".into()), MnemonicData::Text("42 890 00 00".into()), "4 NEUTRON POROSITY".into()),
-      Mnemonic::new("SFLU".into(), Some("OHMM".into()), MnemonicData::Text("07 220 04 00".into()), "5 SHALLOW RESISTIVITY".into()),
-      Mnemonic::new("SFLA".into(), Some("OHMM".into()), MnemonicData::Text("07 222 01 00".into()), "6 SHALLOW RESISTIVITY".into()),
-      Mnemonic::new("ILM".into(), Some("OHMM".into()), MnemonicData::Text("07 120 44 00".into()), "7 MEDIUM RESISTIVITY".into()),
-      Mnemonic::new("ILD".into(), Some("OHMM".into()), MnemonicData::Text("07 120 46 00".into()), "8 DEEP RESISTIVITY".into()),
-    ],
-    vec![],
-  );
-
-  let param_info = ParameterInformation::new(
-    vec![
-      Mnemonic::new("MUD".into(), None, MnemonicData::Text("GEL CHEM".into()), "MUD TYPE".into()),
-      Mnemonic::new("BHT".into(), Some("DEGC".into()), MnemonicData::Float(35.5), "BOTTOM HOLE TEMPERATURE".into()),
-      Mnemonic::new("CSGL".into(), Some("M".into()), MnemonicData::Float(124.6), "BASE OF CASING".into()),
-      Mnemonic::new("MATR".into(), None, MnemonicData::Text("SAND".into()), "NEUTRON MATRIX".into()),
-      Mnemonic::new("MDEN".into(), None, MnemonicData::Float(2710.0), "LOGGING MATRIX DENSITY".into()),
-      Mnemonic::new("RMF".into(), Some("OHMM".into()), MnemonicData::Float(0.216), "MUD FILTRATE RESISTIVITY".into()),
-      Mnemonic::new("DFD".into(), Some("K/M3".into()), MnemonicData::Float(1525.0), "DRILL FLUID DENSITY".into()),
-    ],
-    vec![],
-  );
-
-  let ascii_data = AsciiLogData::new(
-    vec![
-      AsciiColumn::new("DEPTH".into(), vec![1670.0, 1669.875, 1669.750]),
-      AsciiColumn::new("DT".into(), vec![123.450, 123.450, 123.450]),
-      AsciiColumn::new("RHOB".into(), vec![2550.0, 2550.0, 2550.0]),
-      AsciiColumn::new("NPHI".into(), vec![0.450, 0.450, 0.450]),
-      AsciiColumn::new("SFLU".into(), vec![123.450, 123.450, 123.450]),
-      AsciiColumn::new("SFLA".into(), vec![123.450, 123.450, 123.450]),
-      AsciiColumn::new("ILM".into(), vec![110.200, 110.200, 110.200]),
-      AsciiColumn::new("ILD".into(), vec![5.6, 5.6, 105.6]),
-    ],
-    vec![], // comments
-  );
-
-  let other_info = OtherInformation::new(
-    "Note: The logging tools became stuck at 625 metres causing the data between 625 metres and 615 metres to be invalid.".into(),
-    vec![],
-  );
-
-  let las_file = LasFile::new(version_info, well_info, curve_info, ascii_data, Some(other_info), Some(param_info));
-
-  let json = las_file.to_json_str()?;
-
-  fs::write("examples/from_readme/__out__.json", json)?;
-
-  return Ok(());
+  /// Will create directories within '--out' path if they do not exist.
+  /// If file already exists we will overwrite it.
+  #[arg(short, long)]
+  force: bool,
 }
 
-/*
-~VERSION INFORMATION
-VERS. 2.0 : CWLS LOG ASCII STANDARD -VERSION 2.0
-WRAP. NO : ONE LINE PER DEPTH STEP
-~WELL INFORMATION
-STRT .M 1670.0000 :START DEPTH
-STOP .M 1669.7500 :STOP DEPTH
-STEP .M -0.1250 :STEP
-NULL . -999.25 :NULL VALUE
-COMP . ANY OIL COMPANY INC. :COMPANY
-WELL . ANY ET AL 12-34-12-34 :WELL
-FLD . WILDCAT :FIELD
-LOC . 12-34-12-34W5M :LOCATION
-PROV . ALBERTA :PROVINCE
-SRVC . ANY LOGGING COMPANY INC. :SERVICE COMPANY
-DATE . 13-DEC-86 :LOG DATE
-UWI . 100123401234W500 :UNIQUE WELL ID
-LIC . 23412 :ERCB LICENCE NUMB
-~CURVE INFORMATION
-DEPT .M : 1 DEPTH
-DT .US/M 60 520 32 00 : 2 SONIC TRANSIT TIME
-RHOB .K/M3 45 350 01 00 : 3 BULK DENSITY
-NPHI .V/V 42 890 00 00 : 4 NEUTRON POROSITY
-SFLU .OHMM 07 220 04 00 : 5 SHALLOW RESISTIVITY
-SFLA .OHMM 07 222 01 00 : 6 SHALLOW RESISTIVITY
-ILM .OHMM 07 120 44 00 : 7 MEDIUM RESISTIVITY
-ILD .OHMM 07 120 46 00 : 8 DEEP RESISTIVITY
-~PARAMETER INFORMATION
-MUD . GEL CHEM : MUD TYPE
-BHT .DEGC 35.5000 : BOTTOM HOLE TEMPERATURE
-CSGL .M 124.6 : BASE OF CASING
-MATR . SAND : NEUTRON MATRIX
-MDEN . 2710.0000 : LOGGING MATRIX DENSITY
-RMF .OHMM 0.2160 : MUD FILTRATE RESISTIVITY
-DFD .K/M3 1525.0000 : DRILL FLUID DENSITY
-~OTHER
-Note: The logging tools became stuck at 625 metres causing the
-data between 625 metres and 615 metres to be invalid.
-~A DEPTH DT RHOB NPHI SFLU SFLA ILM ILD
-1670.000 123.450 2550.000 0.450 123.450 123.450 110.200 05.600
-1669.875 123.450 2550.000 0.450 123.450 123.450 110.200 05.600
-1669.750 123.450 2550.000 0.450 123.450 123.450 110.200 105.600
-*/
+fn create_file_path(path: PathBuf) {
+  let mut p = path;
+  p.pop();
+  let _ = create_dir_all(&p);
+}
+
+fn main() {
+  let args = Args::parse();
+  if !args.las.ends_with(".las") {
+    println!("Error : '--las' path '{}' must be to a .las file!", args.las);
+    exit(1);
+  }
+  if !args.out.ends_with(".json") {
+    println!("Error : '--out' path '{}' must be to a .json file!", args.out);
+    exit(1);
+  }
+
+  let las = LasFile::parse(args.las.clone().into()).unwrap_or_else(|e| {
+    println!("Error parsing .las file : {e}");
+    exit(1);
+  });
+
+  let las_json = las.to_json_str().unwrap_or_else(|e| {
+    println!("Error converting .las file to .json : {e}");
+    exit(1);
+  });
+
+  let mut file_options = OpenOptions::new();
+  file_options.write(true);
+
+  if args.force {
+    create_file_path(args.out.clone().into());
+    file_options.truncate(true); // Truncate the file if it exists, overwriting its contents
+    file_options.create(true);
+  } else {
+    file_options.create_new(true); // Only create if it is a new file
+  }
+
+  let mut file = file_options.open(&args.out).unwrap_or_else(|e| {
+    println!("Error creating or opening '--out' file : {e}\nYou may need to use the '--force' switch to:\n - Create non-existent directory (or directories) within '--out' path\n - Overwrite existing .json file specified in '--out' path");
+    exit(1);
+  });
+
+  file.write_all(las_json.as_bytes()).unwrap_or_else(|e| {
+    println!("Error writing to '--out' file : {e}");
+    exit(1);
+  });
+
+  println!("Success! Exported JSON file to '{}'", args.out);
+}

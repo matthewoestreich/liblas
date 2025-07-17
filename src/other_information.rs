@@ -13,13 +13,10 @@ pub struct OtherInformation {
 }
 
 impl OtherInformation {
-  pub fn parse(
-    reader: &mut PeekableFileReader,
-    current_comments: &mut Vec<String>,
-  ) -> Result<Self, LibLasError> {
+  pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
     let mut this = Self::default();
 
-    // Comments were abovve the "~Other Info" section
+    // Comments were above the "~Other Info" section
     if !current_comments.is_empty() {
       this.comments = current_comments.to_vec();
       // Clear comments because any additional comments may be intended for a mnemonic or a diff section entirely.
@@ -46,6 +43,20 @@ impl OtherInformation {
     this.text = this.text.trim().to_string();
     this.is_parsed = true;
     return Ok(this);
+  }
+
+  pub fn to_str(&self) -> Option<String> {
+    if self.comments.is_empty() && self.text.is_empty() {
+      return None;
+    }
+    let mut output = "~Other Information".to_string();
+    if !self.comments.is_empty() {
+      output = format!("{}\n{output}", self.comments.join(" "));
+    }
+    if !self.text.is_empty() {
+      output = format!("{output}\n{}", self.text);
+    }
+    return Some(output);
   }
 
   pub fn new(text: String, comments: Vec<String>) -> Self {

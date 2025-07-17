@@ -17,10 +17,7 @@ pub struct VersionInformation {
 }
 
 impl VersionInformation {
-  pub fn parse(
-    reader: &mut PeekableFileReader,
-    current_comments: &mut Vec<String>,
-  ) -> Result<Self, LibLasError> {
+  pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
     let mut this = Self::default();
 
     // Comments were above the "~Version Information" section.
@@ -54,6 +51,22 @@ impl VersionInformation {
 
     this.is_parsed = true;
     return Ok(this);
+  }
+
+  pub fn to_str(&self) -> String {
+    let mut output = "~Version Information".to_string();
+    if !self.comments.is_empty() {
+      output = format!("{}\n{output}", self.comments.join("\n"));
+    }
+    output = format!("{output}\n{}", self.version.to_str());
+    output = format!("{output}\n{}", self.wrap.to_str());
+    if !self.additional.is_empty() {
+      self
+        .additional
+        .iter()
+        .for_each(|a| output = format!("{output}\n{}", a.to_str()));
+    }
+    return output;
   }
 
   pub fn new(version: Mnemonic, wrap: Mnemonic, extra: Vec<Mnemonic>, comments: Vec<String>) -> Self {

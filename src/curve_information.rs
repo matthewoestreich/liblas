@@ -13,10 +13,7 @@ pub struct CurveInformation {
 }
 
 impl CurveInformation {
-  pub fn parse(
-    reader: &mut PeekableFileReader,
-    current_comments: &mut Vec<String>,
-  ) -> Result<Self, LibLasError> {
+  pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
     let mut this = Self::default();
 
     // Comments were above the "~Curve Information" section
@@ -38,14 +35,26 @@ impl CurveInformation {
         continue;
       }
 
-      // If there were comments above this mnemonic line, we pass them
-      // in to get attached to that mnemonic struct.
       let mnemonic = Mnemonic::from_str(&line, current_comments)?;
       this.curves.push(mnemonic);
     }
 
     this.is_parsed = true;
     return Ok(this);
+  }
+
+  pub fn to_str(&self) -> String {
+    let mut output = "~Curve Information".to_string();
+    if !self.comments.is_empty() {
+      output = format!("{}\n{output}", self.comments.join(" "));
+    }
+    if !self.curves.is_empty() {
+      self
+        .curves
+        .iter()
+        .for_each(|a| output = format!("{output}\n{}", a.to_str()));
+    }
+    return output;
   }
 
   pub fn new(curves: Vec<Mnemonic>, comments: Vec<String>) -> Self {
