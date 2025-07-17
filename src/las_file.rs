@@ -1,8 +1,8 @@
 use crate::{errors::LibLasError::*, *};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
+use std::{
+  collections::HashMap, fs::File, io::{BufRead, BufReader}, path::PathBuf
+};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct LasFile {
@@ -18,12 +18,14 @@ pub struct LasFile {
   pub other_information: Option<OtherInformation>,
   #[serde(rename = "ParameterInformation")]
   pub parameter_information: Option<ParameterInformation>,
+  #[serde(skip)] // Holds a section and the index in which that section was parsed.
+  parsed_sections: HashMap<Section, usize>,
 }
 
 impl LasFile {
   #[rustfmt::skip]
   pub fn parse(file_path: PathBuf) -> Result<Self, LibLasError> {
-    let mut this = Self::default();
+    let mut this = Self { parsed_sections: HashMap::new(), ..Default::default() };
 
     let file = File::open(file_path).or(Err(OpeningLasFile))?;
     let reader = BufReader::new(file);
@@ -46,56 +48,67 @@ impl LasFile {
       // as an attempt to make things more legible.
 
       else if current_line.starts_with(&Token::VersionInformationSection()) {
-        if this.version_information.is_parsed {
+        if !this.parsed_sections.is_empty() {
+          return Err(InvalidLasFile(
+            "'~Version Information' must be the first section in a .las file!".into(),
+          ));
+        }
+        if this.parsed_sections.contains_key(&Section::VersionInformation) {
           return Err(InvalidLasFile(
             "Only one '~Version Information' section may exist per .las file!".into(),
           ));
         }
         this.version_information = VersionInformation::parse(&mut line_reader, &mut current_comments)?;
+        let index = this.parsed_sections.len();
+        this.parsed_sections.entry(Section::VersionInformation).or_insert(index);
       }
 
       else if current_line.starts_with(&Token::WellInformationSection()) {
-        if this.well_information.is_parsed {
+        if this.parsed_sections.contains_key(&Section::WellInformation) {
           return Err(InvalidLasFile(
             "Only one '~Well Information' section may exist per .las file!".into(),
           ));
         }
         this.well_information = WellInformation::parse(&mut line_reader, &mut current_comments)?;
+        let index = this.parsed_sections.len();
+        this.parsed_sections.entry(Section::WellInformation).or_insert(index);
       }
 
       else if current_line.starts_with(&Token::OtherSection()) {
-        if let Some(other_info) = this.other_information
-          && other_info.is_parsed
-        {
+        if this.parsed_sections.contains_key(&Section::OtherInformation) {
           return Err(InvalidLasFile(
             "Only one '~Other Information' section may exist per .las file!".into(),
           ));
         }
         this.other_information = Some(OtherInformation::parse(&mut line_reader, &mut current_comments)?);
+        let index = this.parsed_sections.len();
+        this.parsed_sections.entry(Section::OtherInformation).or_insert(index);
       }
 
       else if current_line.starts_with(&Token::ParameterInformationSection()) {
-        if let Some(param_info) = this.parameter_information
-          && param_info.is_parsed
-        {
+        if this.parsed_sections.contains_key(&Section::ParameterInformation) {
           return Err(InvalidLasFile(
             "Only one '~Parameter Information' section may exist per .las file!".into(),
           ));
         }
         this.parameter_information = Some(ParameterInformation::parse(&mut line_reader, &mut current_comments)?);
+        let index = this.parsed_sections.len();
+        this.parsed_sections.entry(Section::ParameterInformation).or_insert(index);
       }
 
       else if current_line.starts_with(&Token::CurveInformationSection()) {
-        if this.curve_information.is_parsed {
+        if this.parsed_sections.contains_key(&Section::CurveInformation) {
           return Err(InvalidLasFile(
             "Only one '~Curve Information' section may exist per .las file!".into(),
           ));
         }
         this.curve_information = CurveInformation::parse(&mut line_reader, &mut current_comments)?;
+        let index = this.parsed_sections.len();
+        this.parsed_sections.entry(Section::CurveInformation).or_insert(index);
       }
 
       else if current_line.starts_with(&Token::AsciiSection()) {
-        if this.ascii_log_data.is_parsed {
+        if this.parsed_sections.contains_key(&Section::AsciiLogData) {
           return Err(InvalidLasFile("Only one '~A' section may exist per .las file!".into()));
         }
         this.ascii_log_data = AsciiLogData::parse(
@@ -104,12 +117,8 @@ impl LasFile {
           &this.curve_information,
           &mut current_comments,
         )?;
-      }
-
-      if !this.was_version_info_parsed_first() {
-        return Err(InvalidLasFile(
-          "'~Version Information' must be the first section in a .las file!".into(),
-        ));
+        let index = this.parsed_sections.len();
+        this.parsed_sections.entry(Section::AsciiLogData).or_insert(index);
       }
     }
 
@@ -131,6 +140,7 @@ impl LasFile {
       ascii_log_data,
       other_information,
       parameter_information,
+      parsed_sections: HashMap::new(),
     };
   }
 
@@ -160,17 +170,6 @@ impl LasFile {
 
     output = format!("{output}\n{}", self.ascii_log_data.to_str());
     return output;
-  }
-
-  // According to the spec, the "~Version Information" section must appear first!
-  // (from spec) "This section is mandatory and must appear as the first section in the file"
-  fn was_version_info_parsed_first(&self) -> bool {
-    return !(!self.version_information.is_parsed
-      && (self.ascii_log_data.is_parsed
-        || self.curve_information.is_parsed
-        || self.well_information.is_parsed
-        || self.parameter_information.is_some()
-        || self.other_information.is_some()));
   }
 
   // Consumes all comment lines up until the next line (which is viewed by peeking) isn't a comment.

@@ -37,8 +37,6 @@ pub struct WellInformation {
   pub api: Mnemonic,
   pub additional: Vec<Mnemonic>,
   pub comments: Vec<String>,
-  #[serde(skip)]
-  pub(crate) is_parsed: bool,
 }
 
 impl WellInformation {
@@ -147,7 +145,6 @@ impl WellInformation {
       return Err(InvalidLasFile(e));
     }
 
-    this.is_parsed = true;
     return Ok(this);
   }
 
@@ -253,7 +250,6 @@ impl WellInformation {
       api,
       additional,
       comments,
-      is_parsed: false,
     };
   }
 }

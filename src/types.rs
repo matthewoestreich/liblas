@@ -6,14 +6,14 @@ use std::{
 
 pub type PeekableFileReader = Peekable<Lines<BufReader<File>>>;
 
-#[derive(PartialEq)]
-pub enum Section {
-  Version,
-  Well,
-  Ascii,
-  Option,
-  Curve,
-  None,
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub(crate) enum Section {
+  VersionInformation,
+  WellInformation,
+  AsciiLogData,
+  OtherInformation,
+  CurveInformation,
+  ParameterInformation,
 }
 
 pub struct Token {}

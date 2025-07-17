@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 pub struct CurveInformation {
   pub curves: Vec<Mnemonic>,
   pub comments: Vec<String>,
-  #[serde(skip)]
-  pub(crate) is_parsed: bool,
 }
 
 impl CurveInformation {
@@ -39,7 +37,6 @@ impl CurveInformation {
       this.curves.push(mnemonic);
     }
 
-    this.is_parsed = true;
     return Ok(this);
   }
 
@@ -61,7 +58,6 @@ impl CurveInformation {
     return Self {
       curves,
       comments,
-      is_parsed: false,
     };
   }
 }

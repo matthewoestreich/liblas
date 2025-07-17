@@ -12,8 +12,6 @@ pub struct VersionInformation {
   pub wrap: Mnemonic,
   pub additional: Vec<Mnemonic>,
   pub comments: Vec<String>,
-  #[serde(skip)]
-  pub(crate) is_parsed: bool,
 }
 
 impl VersionInformation {
@@ -49,7 +47,6 @@ impl VersionInformation {
       }
     }
 
-    this.is_parsed = true;
     return Ok(this);
   }
 
@@ -75,7 +72,6 @@ impl VersionInformation {
       wrap,
       additional: extra,
       comments,
-      is_parsed: false,
     };
   }
 }

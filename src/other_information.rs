@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize};
 pub struct OtherInformation {
   pub text: String,
   pub comments: Vec<String>,
-  #[serde(skip)]
-  pub(crate) is_parsed: bool,
 }
 
 impl OtherInformation {
@@ -41,7 +39,6 @@ impl OtherInformation {
     }
 
     this.text = this.text.trim().to_string();
-    this.is_parsed = true;
     return Ok(this);
   }
 
@@ -63,7 +60,6 @@ impl OtherInformation {
     return Self {
       text,
       comments,
-      is_parsed: false,
     };
   }
 }

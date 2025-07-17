@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 pub struct ParameterInformation {
   pub parameters: Vec<Mnemonic>,
   pub comments: Vec<String>,
-  #[serde(skip)]
-  pub(crate) is_parsed: bool,
 }
 
 impl ParameterInformation {
@@ -39,7 +37,6 @@ impl ParameterInformation {
       this.parameters.push(mnemonic);
     }
 
-    this.is_parsed = true;
     return Ok(this);
   }
 
@@ -64,7 +61,6 @@ impl ParameterInformation {
     return Self {
       parameters,
       comments,
-      is_parsed: false,
     };
   }
 }

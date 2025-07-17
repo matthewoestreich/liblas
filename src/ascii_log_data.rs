@@ -27,8 +27,6 @@ pub struct AsciiLogData {
   pub data: Vec<AsciiColumn>,
   pub comments: Vec<String>,
   #[serde(skip)]
-  pub(crate) is_parsed: bool,
-  #[serde(skip)]
   #[allow(dead_code)]
   pub(crate) has_column_names: bool,
 }
@@ -38,7 +36,6 @@ impl Default for AsciiLogData {
     return Self {
       data: vec![],
       comments: vec![],
-      is_parsed: false,
       has_column_names: true,
     };
   }
@@ -60,7 +57,6 @@ impl AsciiLogData {
         .into_iter()
         .map(|name| return AsciiColumn { name, data: Vec::new() })
         .collect(),
-      is_parsed: true,
       has_column_names: header.split_whitespace().nth(1).is_some(),
     };
 
@@ -182,7 +178,6 @@ impl AsciiLogData {
     return Self {
       data,
       comments,
-      is_parsed: false,
       has_column_names: true,
     };
   }
