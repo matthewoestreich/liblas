@@ -44,64 +44,41 @@ impl LasFile {
 
             if current_line.starts_with(&Token::Comment()) {
                 current_comments.push(current_line.clone());
-                // Is this the only comment?
                 let parsed_comments = this.parse_comments(&mut line_reader)?;
                 current_comments.extend(parsed_comments);
             } else if current_line.starts_with(&Token::VersionInformationSection()) {
                 if !this.parsed_sections.is_empty() {
-                    return Err(InvalidLasFile(
-                        "'~Version Information' must be the first section in a .las file!".into(),
-                    ));
+                    return Err(VersionInformationNotFirst);
                 }
-                if this.parsed_sections.contains_key(&Section::VersionInformation) {
-                    return Err(DuplicateSectionFound("~Version Information".into()));
-                }
+                this.check_section_not_parsed(&Section::VersionInformation)?;
                 this.version_information = VersionInformation::parse(&mut line_reader, &mut current_comments)?;
-                let index = this.parsed_sections.len();
-                this.parsed_sections.entry(Section::VersionInformation).or_insert(index);
+                this.mark_section_parsed(Section::VersionInformation);
             } else if current_line.starts_with(&Token::WellInformationSection()) {
-                if this.parsed_sections.contains_key(&Section::WellInformation) {
-                    return Err(DuplicateSectionFound("~Well Information".into()));
-                }
+                this.check_section_not_parsed(&Section::WellInformation)?;
                 this.well_information = WellInformation::parse(&mut line_reader, &mut current_comments)?;
-                let index = this.parsed_sections.len();
-                this.parsed_sections.entry(Section::WellInformation).or_insert(index);
+                this.mark_section_parsed(Section::WellInformation);
             } else if current_line.starts_with(&Token::OtherSection()) {
-                if this.parsed_sections.contains_key(&Section::OtherInformation) {
-                    return Err(DuplicateSectionFound("~Other Information".into()));
-                }
+                this.check_section_not_parsed(&Section::OtherInformation)?;
                 this.other_information = Some(OtherInformation::parse(&mut line_reader, &mut current_comments)?);
-                let index = this.parsed_sections.len();
-                this.parsed_sections.entry(Section::OtherInformation).or_insert(index);
+                this.mark_section_parsed(Section::OtherInformation);
             } else if current_line.starts_with(&Token::ParameterInformationSection()) {
-                if this.parsed_sections.contains_key(&Section::ParameterInformation) {
-                    return Err(DuplicateSectionFound("~Parameter Information".into()));
-                }
+                this.check_section_not_parsed(&Section::ParameterInformation)?;
                 this.parameter_information =
                     Some(ParameterInformation::parse(&mut line_reader, &mut current_comments)?);
-                let index = this.parsed_sections.len();
-                this.parsed_sections
-                    .entry(Section::ParameterInformation)
-                    .or_insert(index);
+                this.mark_section_parsed(Section::ParameterInformation);
             } else if current_line.starts_with(&Token::CurveInformationSection()) {
-                if this.parsed_sections.contains_key(&Section::CurveInformation) {
-                    return Err(DuplicateSectionFound("~Curve Information".into()));
-                }
+                this.check_section_not_parsed(&Section::CurveInformation)?;
                 this.curve_information = CurveInformation::parse(&mut line_reader, &mut current_comments)?;
-                let index = this.parsed_sections.len();
-                this.parsed_sections.entry(Section::CurveInformation).or_insert(index);
+                this.mark_section_parsed(Section::CurveInformation);
             } else if current_line.starts_with(&Token::AsciiSection()) {
-                if this.parsed_sections.contains_key(&Section::AsciiLogData) {
-                    return Err(DuplicateSectionFound("~A (ASCII Log Data)".into()));
-                }
+                this.check_section_not_parsed(&Section::AsciiLogData)?;
                 this.ascii_log_data = AsciiLogData::parse(
                     &mut line_reader,
                     current_line,
                     &this.curve_information,
                     &mut current_comments,
                 )?;
-                let index = this.parsed_sections.len();
-                this.parsed_sections.entry(Section::AsciiLogData).or_insert(index);
+                this.mark_section_parsed(Section::AsciiLogData);
             }
         }
 
@@ -116,14 +93,30 @@ impl LasFile {
         other_information: Option<OtherInformation>,
         parameter_information: Option<ParameterInformation>,
     ) -> Self {
+        // The index is the order each section will be reconstructed in.
+        let mut map = HashMap::from([
+            (Section::VersionInformation, 0),
+            (Section::WellInformation, 1),
+            (Section::CurveInformation, 2),
+        ]);
+
+        if parameter_information.is_some() {
+            map.insert(Section::ParameterInformation, map.len());
+        }
+        if other_information.is_some() {
+            map.insert(Section::OtherInformation, map.len());
+        }
+
+        map.insert(Section::AsciiLogData, map.len());
+
         return Self {
             version_information,
             well_information,
             curve_information,
-            ascii_log_data,
             other_information,
             parameter_information,
-            parsed_sections: HashMap::new(),
+            ascii_log_data,
+            parsed_sections: map,
         };
     }
 
@@ -131,28 +124,50 @@ impl LasFile {
         return serde_json::to_string_pretty(self).map_err(|e| return ConvertingToJson(e.to_string()));
     }
 
-    // Convert this structure back into .las format
+    // - Convert this structure back into .las format
+    // - We reconstruct the .las file in the same order we parsed it.
+    // - If this las file was programmatically created, we use the order in the `fn new`.
     pub fn to_las_str(&self) -> String {
-        let mut output = format!(
-            "{}\n{}\n{}",
-            self.version_information.to_str(),
-            self.well_information.to_str(),
-            self.curve_information.to_str()
-        );
+        let mut order: Vec<String> = vec![String::new(); Section::COUNT];
 
-        if let Some(param_info) = &self.parameter_information {
-            if let Some(param_info_str) = param_info.to_str() {
-                output = format!("{output}\n{param_info_str}");
-            }
+        if let Some(&index) = self.parsed_sections.get(&Section::VersionInformation) {
+            order[index] = self.version_information.to_str();
         }
-        if let Some(other_info) = &self.other_information {
-            if let Some(other_info_str) = other_info.to_str() {
-                output = format!("{output}\n{other_info_str}");
-            }
+        if let Some(&index) = self.parsed_sections.get(&Section::WellInformation) {
+            order[index] = self.well_information.to_str();
+        }
+        if let Some(&index) = self.parsed_sections.get(&Section::CurveInformation) {
+            order[index] = self.curve_information.to_str();
+        }
+        if let Some(&index) = self.parsed_sections.get(&Section::ParameterInformation)
+            && let Some(param_info) = &self.parameter_information
+            && let Some(param_info_str) = param_info.to_str()
+        {
+            order[index] = param_info_str;
+        }
+        if let Some(&index) = self.parsed_sections.get(&Section::OtherInformation)
+            && let Some(other_info) = &self.other_information
+            && let Some(other_info_str) = other_info.to_str()
+        {
+            order[index] = other_info_str;
+        }
+        if let Some(&index) = self.parsed_sections.get(&Section::AsciiLogData) {
+            order[index] = self.ascii_log_data.to_str();
         }
 
-        output = format!("{output}\n{}", self.ascii_log_data.to_str());
-        return output;
+        return order.join("\n");
+    }
+
+    fn check_section_not_parsed(&self, section: &Section) -> Result<(), LibLasError> {
+        if self.parsed_sections.contains_key(section) {
+            return Err(DuplicateSectionFound(format!("{section:?}")));
+        }
+        return Ok(());
+    }
+
+    fn mark_section_parsed(&mut self, section: Section) {
+        let index = self.parsed_sections.len();
+        self.parsed_sections.insert(section, index);
     }
 
     // Consumes all comment lines up until the next line (which is viewed by peeking) isn't a comment.

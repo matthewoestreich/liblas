@@ -16,6 +16,10 @@ pub(crate) enum Section {
     ParameterInformation,
 }
 
+impl Section {
+    pub const COUNT: usize = 6;
+}
+
 pub struct Token {}
 #[allow(non_snake_case)]
 impl Token {

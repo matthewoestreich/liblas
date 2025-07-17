@@ -22,6 +22,7 @@ pub enum LibLasError {
     ConvertingToJson(String),
     CurveInfoRequiredToParseAsciiLogData,
     GeneralError(String),
+    VersionInformationNotFirst,
 }
 
 impl error::Error for LibLasError {}
@@ -43,6 +44,10 @@ impl Display for LibLasError {
         use LibLasError::*;
         #[allow(clippy::implicit_return)]
         match self {
+            VersionInformationNotFirst => write!(
+                f,
+                "~Version Information is required to be the first section in a .las file!"
+            ),
             GeneralError(message) => write!(f, "{message}"),
             IoError(err) => write!(f, "{err}"),
             ParseFloatError(err) => write!(f, "{err}"),
