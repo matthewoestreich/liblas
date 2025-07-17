@@ -55,10 +55,7 @@ impl CurveInformation {
   }
 
   pub fn new(curves: Vec<Mnemonic>, comments: Vec<String>) -> Self {
-    return Self {
-      curves,
-      comments,
-    };
+    return Self { curves, comments };
   }
 }
 

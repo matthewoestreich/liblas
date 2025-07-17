@@ -58,10 +58,7 @@ impl ParameterInformation {
   }
 
   pub fn new(parameters: Vec<Mnemonic>, comments: Vec<String>) -> Self {
-    return Self {
-      parameters,
-      comments,
-    };
+    return Self { parameters, comments };
   }
 }
 

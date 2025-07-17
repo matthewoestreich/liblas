@@ -57,9 +57,6 @@ impl OtherInformation {
   }
 
   pub fn new(text: String, comments: Vec<String>) -> Self {
-    return Self {
-      text,
-      comments,
-    };
+    return Self { text, comments };
   }
 }

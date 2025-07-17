@@ -1,7 +1,10 @@
 use crate::{errors::LibLasError::*, *};
 use serde::{Deserialize, Serialize};
 use std::{
-  collections::HashMap, fs::File, io::{BufRead, BufReader}, path::PathBuf
+  collections::HashMap,
+  fs::File,
+  io::{BufRead, BufReader},
+  path::PathBuf,
 };
 
 #[derive(Debug, Default, Serialize, Deserialize)]
