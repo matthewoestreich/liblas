@@ -1,30 +1,33 @@
 use std::io;
 
-use crate::vtwo::types::LasToken;
+use crate::vtwo::section::SectionKind;
 
 #[derive(Debug)]
 pub enum ParseError {
     Io(io::Error),
-    UnexpectedToken {
-        token: LasToken,
-        line: usize,
+    MissingSection {
+        section: SectionKind,
     },
     MissingRequiredKey {
         key: String,
-        line: usize,
+        line_number: usize,
+        line: String,
     },
     MissingDelimiter {
         delimiter: String,
         line_number: usize,
         line: String,
     },
-    InvalidNumber {
-        value: String,
-        line: usize,
+    DuplicateSection {
+        section: SectionKind,
+        line_number: usize,
+        duplicate_line_number: usize,
     },
-    Other {
-        message: String,
-        line: usize,
+    VersionInformationNotFirst {
+        line_number: usize,
+    },
+    AsciiLogDataSectionNotLast {
+        line_number: usize,
     },
 }
 

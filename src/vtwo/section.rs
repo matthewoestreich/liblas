@@ -1,30 +1,6 @@
 use crate::vtwo::errors::ParseError;
 
 #[derive(Debug)]
-pub enum LasToken {
-    SectionHeader {
-        name: String, // "~Curve Information Section"
-        line_number: usize,
-    },
-    Comment {
-        text: String,
-        line_number: usize,
-    },
-    DataLine {
-        raw: String,
-        line_number: usize,
-    },
-    Blank {
-        line_number: usize,
-    },
-}
-
-#[derive(Debug)]
-pub struct LasFile {
-    pub sections: Vec<Section>,
-}
-
-#[derive(Debug)]
 pub struct Section {
     pub header: SectionHeader,
     pub line: usize,
@@ -43,7 +19,7 @@ impl Section {
         }
     }
 
-    pub fn parse_line(&mut self, raw: &str, line: usize) -> Result<(), ParseError> {
+    pub fn parse_line(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
         if self.header.kind == SectionKind::AsciiLogData {
             // Skip for now
             return Ok(());
@@ -57,7 +33,7 @@ impl Section {
         // Split at the *last* colon to isolate description
         let (before_colon, description) = raw.rsplit_once(':').ok_or_else(|| ParseError::MissingDelimiter {
             delimiter: "last colon (':') on line".to_string(),
-            line_number: line,
+            line_number,
             line: raw.to_string(),
         })?;
 
@@ -66,7 +42,7 @@ impl Section {
         // Find the position of the '.' in the left-hand part
         let dot_index = before_colon.find('.').ok_or_else(|| ParseError::MissingDelimiter {
             delimiter: "first dot ('.') on line".to_string(),
-            line_number: line,
+            line_number,
             line: raw.to_string(),
         })?;
 
@@ -75,62 +51,36 @@ impl Section {
         if mnemonic.is_empty() {
             return Err(ParseError::MissingRequiredKey {
                 key: "mnemonic".to_string(),
-                line,
+                line_number,
+                line: raw.to_string(),
             });
         }
 
-        // After the '.' is unit (no spaces allowed until value starts)
-        let after_dot = &before_colon[dot_index + 1..];
+        // After the '.' is unit (no spaces allowed until value starts) up until first space.
+        // From first space until last colon is data (aka value).
+        // This string will contain both the unit and data.
+        let unit_and_data = &before_colon[dot_index + 1..];
 
-        let (unit, data) = if after_dot.is_empty() {
-            (None, "") // No unit, no value
-        } else if after_dot.starts_with(char::is_whitespace) {
-            // Space immediately after the dot → no unit
-            (None, after_dot.trim())
+        let (unit, data) = if unit_and_data.is_empty() {
+            (None, "") // No unit and no data (aka value) 
+        } else if unit_and_data.starts_with(char::is_whitespace) {
+            (None, unit_and_data.trim()) // Space immediately after the dot -> no unit
         } else {
             // Possibly unit followed by value
-            match after_dot.split_once(char::is_whitespace) {
+            match unit_and_data.split_once(char::is_whitespace) {
+                // Both unit and data.
                 Some((u, rest)) => (Some(u.trim().to_string()), rest.trim()),
-                None => (Some(after_dot.trim().to_string()), ""),
+                // No unit but data.
+                None => (Some(unit_and_data.trim().to_string()), ""),
             }
         };
 
-        let value = if data.is_empty() {
-            LasValue::Text("".to_string())
-        } else if let Ok(i) = data.parse::<i64>() {
-            LasValue::Int(i)
-        } else if data.contains('.')
-            && let Ok(f) = data.parse::<f64>()
-        {
-            LasValue::Float(f)
-        } else {
-            LasValue::Text(data.to_string())
-        };
-
-        let entry = match self.header.kind {
-            SectionKind::Curve => {
-                let mut api_codes = vec![];
-                if let LasValue::Text(api_code_raw) = value {
-                    for part in api_code_raw.split_whitespace() {
-                        api_codes.push(part.to_string());
-                    }
-                }
-
-                SectionEntry::Curve(CurveEntry {
-                    mnemonic,
-                    unit: unit.unwrap_or_default(),
-                    api_codes,
-                    description,
-                })
-            }
-
-            _ => SectionEntry::Delimited(DelimitedEntry {
-                mnemonic,
-                unit,
-                value,
-                description,
-            }),
-        };
+        let entry = SectionEntry::Delimited(DelimitedEntry {
+            mnemonic,
+            unit,
+            description,
+            value: LasValue::from(data),
+        });
 
         self.entries.push(entry);
         Ok(())
@@ -149,7 +99,7 @@ impl SectionHeader {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SectionKind {
     Version,
     Well,
@@ -162,12 +112,12 @@ pub enum SectionKind {
 impl From<&str> for SectionKind {
     fn from(value: &str) -> Self {
         match value.to_lowercase() {
-            v if v.starts_with("version") | v.starts_with("v") => SectionKind::Version,
-            v if v.starts_with("well") | v.starts_with("w") => SectionKind::Well,
-            v if v.starts_with("curve") | v.starts_with("c") => SectionKind::Curve,
-            v if v.starts_with("parameter") | v.starts_with("p") => SectionKind::Parameter,
-            v if v.starts_with("other") | v.starts_with("o") => SectionKind::Other,
-            v if v.starts_with("ascii") | v.starts_with("a") => SectionKind::AsciiLogData,
+            v if v.starts_with("version") || v.starts_with("v") => SectionKind::Version,
+            v if v.starts_with("well") || v.starts_with("w") => SectionKind::Well,
+            v if v.starts_with("curve") || v.starts_with("c") => SectionKind::Curve,
+            v if v.starts_with("parameter") || v.starts_with("p") => SectionKind::Parameter,
+            v if v.starts_with("other") || v.starts_with("o") => SectionKind::Other,
+            v if v.starts_with("ascii") || v.starts_with("a") => SectionKind::AsciiLogData,
             _ => unreachable!("unrecognized section! {value}"),
         }
     }
@@ -176,7 +126,6 @@ impl From<&str> for SectionKind {
 #[derive(Debug)]
 pub enum SectionEntry {
     Delimited(DelimitedEntry),
-    Curve(CurveEntry),
     AsciiRow(Vec<f64>),
     Raw(String),
 }
@@ -190,14 +139,6 @@ pub struct DelimitedEntry {
     pub description: Option<String>,
 }
 
-#[derive(Debug)]
-pub struct CurveEntry {
-    pub mnemonic: String,
-    pub unit: String,
-    pub api_codes: Vec<String>,
-    pub description: Option<String>,
-}
-
 #[derive(Debug, Clone)]
 pub enum LasValue {
     Int(i64),
@@ -208,13 +149,20 @@ pub enum LasValue {
 impl LasValue {
     pub fn parse(raw: &str) -> LasValue {
         let raw = raw.trim();
-
         if let Ok(i) = raw.parse::<i64>() {
             LasValue::Int(i)
-        } else if let Ok(f) = raw.parse::<f64>() {
+        } else if raw.contains('.')
+            && let Ok(f) = raw.parse::<f64>()
+        {
             LasValue::Float(f)
         } else {
             LasValue::Text(raw.to_string())
         }
+    }
+}
+
+impl From<&str> for LasValue {
+    fn from(value: &str) -> Self {
+        LasValue::parse(value)
     }
 }
