@@ -1,13 +1,12 @@
 use std::io;
 
-use crate::tokenizer::LasToken;
+use crate::vtwo::section::SectionKind;
 
 #[derive(Debug)]
 pub enum ParseError {
     Io(io::Error),
-    UnexpectedToken {
-        token: LasToken,
-        line: usize,
+    MissingSection {
+        section: SectionKind,
     },
     MissingRequiredKey {
         key: String,
@@ -19,13 +18,16 @@ pub enum ParseError {
         line_number: usize,
         line: String,
     },
-    InvalidNumber {
-        value: String,
-        line: usize,
+    DuplicateSection {
+        section: SectionKind,
+        line_number: usize,
+        duplicate_line_number: usize,
     },
-    Other {
-        message: String,
-        line: usize,
+    VersionInformationNotFirst {
+        line_number: usize,
+    },
+    AsciiLogDataSectionNotLast {
+        line_number: usize,
     },
 }
 

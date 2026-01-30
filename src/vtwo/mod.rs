@@ -1,8 +1,9 @@
 #![allow(clippy::implicit_return)]
 pub mod errors;
 pub mod parser;
+pub mod section;
 pub mod tokenizer;
-pub mod types;
+pub mod value;
 
 #[cfg(test)]
 mod test {
@@ -10,9 +11,14 @@ mod test {
 
     use super::*;
 
+    const _GOOD_SAMPLE_1: &str = "tests/las/_good_sample_1.las";
+    const _MISSING_VERSION_SECTION: &str = "tests/las/missing_version_section.las";
+    const _ASCII_NOT_LAST: &str = "tests/las/ascii_not_last.las";
+    const _DUPLICATE_WELL_SECTIONS: &str = "tests/las/duplicate_well_sections.las";
+
     #[test]
     fn testing() {
-        let file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/las/_good_sample_1.las");
+        let file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(_GOOD_SAMPLE_1);
         let file = File::open(file_path).expect("open file error");
         let reader = BufReader::new(file);
 

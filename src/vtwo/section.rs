@@ -1,4 +1,4 @@
-use crate::vtwo::errors::ParseError;
+use crate::{value::LasValue, vtwo::errors::ParseError};
 
 #[derive(Debug)]
 pub struct LasFile {
@@ -9,7 +9,7 @@ pub struct LasFile {
 pub struct Section {
     pub header: SectionHeader,
     pub line: usize,
-    pub entries: Vec<SectionEntry>,
+    pub entries: Vec<SectionLine>,
 }
 
 impl Section {
@@ -31,7 +31,7 @@ impl Section {
         }
 
         if self.header.kind == SectionKind::Other {
-            self.entries.push(SectionEntry::Raw(raw.trim().to_string()));
+            self.entries.push(SectionLine::Raw(raw.trim().to_string()));
             return Ok(());
         }
 
@@ -61,58 +61,31 @@ impl Section {
             });
         }
 
-        // After the '.' is unit (no spaces allowed until value starts)
-        let after_dot = &before_colon[dot_index + 1..];
+        // After the '.' is unit (no spaces allowed until value starts) up until first space.
+        // From first space until last colon is data (aka value).
+        // This string will contain both the unit and data.
+        let unit_and_data = &before_colon[dot_index + 1..];
 
-        let (unit, data) = if after_dot.is_empty() {
-            (None, "") // No unit, no value
-        } else if after_dot.starts_with(char::is_whitespace) {
-            // Space immediately after the dot → no unit
-            (None, after_dot.trim())
+        let (unit, data) = if unit_and_data.is_empty() {
+            (None, "") // No unit and no data (aka value) 
+        } else if unit_and_data.starts_with(char::is_whitespace) {
+            (None, unit_and_data.trim()) // Space immediately after the dot -> no unit
         } else {
             // Possibly unit followed by value
-            match after_dot.split_once(char::is_whitespace) {
+            match unit_and_data.split_once(char::is_whitespace) {
+                // Both unit and data.
                 Some((u, rest)) => (Some(u.trim().to_string()), rest.trim()),
-                None => (Some(after_dot.trim().to_string()), ""),
+                // No unit but data.
+                None => (Some(unit_and_data.trim().to_string()), ""),
             }
         };
 
-        let value = if data.is_empty() {
-            LasValue::Text("".to_string())
-        } else if let Ok(i) = data.parse::<i64>() {
-            LasValue::Int(i)
-        } else if data.contains('.')
-            && let Ok(f) = data.parse::<f64>()
-        {
-            LasValue::Float(f)
-        } else {
-            LasValue::Text(data.to_string())
-        };
-
-        let entry = match self.header.kind {
-            SectionKind::Curve => {
-                let mut api_codes = vec![];
-                if let LasValue::Text(api_code_raw) = value {
-                    for part in api_code_raw.split_whitespace() {
-                        api_codes.push(part.to_string());
-                    }
-                }
-
-                SectionEntry::Curve(CurveEntry {
-                    mnemonic,
-                    unit: unit.unwrap_or_default(),
-                    api_codes,
-                    description,
-                })
-            }
-
-            _ => SectionEntry::Delimited(DelimitedEntry {
-                mnemonic,
-                unit,
-                value,
-                description,
-            }),
-        };
+        let entry = SectionLine::Delimited(Line {
+            mnemonic,
+            unit,
+            description,
+            value: LasValue::from(data),
+        });
 
         self.entries.push(entry);
         Ok(())
@@ -131,7 +104,7 @@ impl SectionHeader {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SectionKind {
     Version,
     Well,
@@ -156,47 +129,17 @@ impl From<&str> for SectionKind {
 }
 
 #[derive(Debug)]
-pub enum SectionEntry {
-    Delimited(DelimitedEntry),
-    Curve(CurveEntry),
+pub enum SectionLine {
+    Delimited(Line),
     AsciiRow(Vec<f64>),
     Raw(String),
 }
 
 // The sections "VERSION", "WELL", "CURVE" and "PARAMETER" use line delimiters.
 #[derive(Debug)]
-pub struct DelimitedEntry {
+pub struct Line {
     pub mnemonic: String,
     pub unit: Option<String>,
     pub value: LasValue,
     pub description: Option<String>,
-}
-
-#[derive(Debug)]
-pub struct CurveEntry {
-    pub mnemonic: String,
-    pub unit: String,
-    pub api_codes: Vec<String>,
-    pub description: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub enum LasValue {
-    Int(i64),
-    Float(f64),
-    Text(String),
-}
-
-impl LasValue {
-    pub fn parse(raw: &str) -> LasValue {
-        let raw = raw.trim();
-
-        if let Ok(i) = raw.parse::<i64>() {
-            LasValue::Int(i)
-        } else if let Ok(f) = raw.parse::<f64>() {
-            LasValue::Float(f)
-        } else {
-            LasValue::Text(raw.to_string())
-        }
-    }
 }
