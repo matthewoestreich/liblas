@@ -1,8 +1,9 @@
 use crate::{
+    LasFile,
     tokenizer::LasToken,
     vtwo::{
         errors::ParseError,
-        section::{LasFile, Section, SectionKind},
+        section::{Section, SectionKind},
     },
 };
 use std::{

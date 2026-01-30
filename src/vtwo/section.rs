@@ -1,15 +1,10 @@
-use crate::{value::LasValue, vtwo::errors::ParseError};
-
-#[derive(Debug)]
-pub struct LasFile {
-    pub sections: Vec<Section>,
-}
+use crate::vtwo::errors::ParseError;
 
 #[derive(Debug)]
 pub struct Section {
     pub header: SectionHeader,
     pub line: usize,
-    pub entries: Vec<SectionLine>,
+    pub entries: Vec<SectionEntry>,
 }
 
 impl Section {
@@ -31,7 +26,7 @@ impl Section {
         }
 
         if self.header.kind == SectionKind::Other {
-            self.entries.push(SectionLine::Raw(raw.trim().to_string()));
+            self.entries.push(SectionEntry::Raw(raw.trim().to_string()));
             return Ok(());
         }
 
@@ -80,7 +75,7 @@ impl Section {
             }
         };
 
-        let entry = SectionLine::Delimited(Line {
+        let entry = SectionEntry::Delimited(DelimitedEntry {
             mnemonic,
             unit,
             description,
@@ -129,17 +124,45 @@ impl From<&str> for SectionKind {
 }
 
 #[derive(Debug)]
-pub enum SectionLine {
-    Delimited(Line),
+pub enum SectionEntry {
+    Delimited(DelimitedEntry),
     AsciiRow(Vec<f64>),
     Raw(String),
 }
 
 // The sections "VERSION", "WELL", "CURVE" and "PARAMETER" use line delimiters.
 #[derive(Debug)]
-pub struct Line {
+pub struct DelimitedEntry {
     pub mnemonic: String,
     pub unit: Option<String>,
     pub value: LasValue,
     pub description: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum LasValue {
+    Int(i64),
+    Float(f64),
+    Text(String),
+}
+
+impl LasValue {
+    pub fn parse(raw: &str) -> LasValue {
+        let raw = raw.trim();
+        if let Ok(i) = raw.parse::<i64>() {
+            LasValue::Int(i)
+        } else if raw.contains('.')
+            && let Ok(f) = raw.parse::<f64>()
+        {
+            LasValue::Float(f)
+        } else {
+            LasValue::Text(raw.to_string())
+        }
+    }
+}
+
+impl From<&str> for LasValue {
+    fn from(value: &str) -> Self {
+        LasValue::parse(value)
+    }
 }

@@ -3,7 +3,13 @@ pub mod errors;
 pub mod parser;
 pub mod section;
 pub mod tokenizer;
-pub mod value;
+
+use section::Section;
+
+#[derive(Debug)]
+pub struct LasFile {
+    pub sections: Vec<Section>,
+}
 
 #[cfg(test)]
 mod test {
