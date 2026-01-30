@@ -11,7 +11,8 @@ pub enum ParseError {
     },
     MissingRequiredKey {
         key: String,
-        line: usize,
+        line_number: usize,
+        line: String,
     },
     MissingDelimiter {
         delimiter: String,

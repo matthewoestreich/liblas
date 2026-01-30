@@ -43,7 +43,7 @@ impl Section {
         }
     }
 
-    pub fn parse_line(&mut self, raw: &str, line: usize) -> Result<(), ParseError> {
+    pub fn parse_line(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
         if self.header.kind == SectionKind::AsciiLogData {
             // Skip for now
             return Ok(());
@@ -57,7 +57,7 @@ impl Section {
         // Split at the *last* colon to isolate description
         let (before_colon, description) = raw.rsplit_once(':').ok_or_else(|| ParseError::MissingDelimiter {
             delimiter: "last colon (':') on line".to_string(),
-            line_number: line,
+            line_number,
             line: raw.to_string(),
         })?;
 
@@ -66,7 +66,7 @@ impl Section {
         // Find the position of the '.' in the left-hand part
         let dot_index = before_colon.find('.').ok_or_else(|| ParseError::MissingDelimiter {
             delimiter: "first dot ('.') on line".to_string(),
-            line_number: line,
+            line_number,
             line: raw.to_string(),
         })?;
 
@@ -75,7 +75,8 @@ impl Section {
         if mnemonic.is_empty() {
             return Err(ParseError::MissingRequiredKey {
                 key: "mnemonic".to_string(),
-                line,
+                line_number,
+                line: raw.to_string(),
             });
         }
 
