@@ -1,17 +1,17 @@
 use crate::{
-    LibLasError::{self, ReadingNextLine},
-    Mnemonic, PeekableFileReader, Token,
+    LibLasErrorOld::{self, ReadingNextLine},
+    MnemonicOld, PeekableFileReader, TokenOld,
 };
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 
 #[derive(Debug, Default, Deserialize)]
-pub struct CurveInformation {
-    pub curves: Vec<Mnemonic>,
+pub struct CurveInformationOld {
+    pub curves: Vec<MnemonicOld>,
     pub comments: Vec<String>,
 }
 
-impl CurveInformation {
-    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
+impl CurveInformationOld {
+    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasErrorOld> {
         let mut this = Self::default();
 
         // Comments were above the "~Curve Information" section
@@ -22,18 +22,18 @@ impl CurveInformation {
         }
 
         while let Some(Ok(peeked_line)) = reader.peek() {
-            if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
+            if peeked_line.trim().to_string().starts_with(&TokenOld::Tilde()) {
                 break;
             }
 
             let line = reader.next().ok_or(ReadingNextLine)??.trim().to_string();
 
-            if line.starts_with(&Token::Comment()) {
+            if line.starts_with(&TokenOld::Comment()) {
                 current_comments.push(line.clone());
                 continue;
             }
 
-            let mnemonic = Mnemonic::from_str(&line, current_comments)?;
+            let mnemonic = MnemonicOld::from_str(&line, current_comments)?;
             this.curves.push(mnemonic);
         }
 
@@ -53,12 +53,12 @@ impl CurveInformation {
         return output;
     }
 
-    pub fn new(curves: Vec<Mnemonic>, comments: Vec<String>) -> Self {
+    pub fn new(curves: Vec<MnemonicOld>, comments: Vec<String>) -> Self {
         return Self { curves, comments };
     }
 }
 
-impl Serialize for CurveInformation {
+impl Serialize for CurveInformationOld {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

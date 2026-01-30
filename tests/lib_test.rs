@@ -1,8 +1,8 @@
 use liblas::*;
 
 #[test]
-fn test_minified_las() -> Result<(), LibLasError> {
-    let las_result = LasFile::parse("tests/las/minified.las".into());
+fn test_minified_las() -> Result<(), LibLasErrorOld> {
+    let las_result = LasFileOld::parse("tests/las/minified.las".into());
     let las = las_result?;
     println!("{}", las.to_las_str());
     //let json = las.to_json_str()?;

@@ -1,21 +1,21 @@
 use crate::{
-    LibLasError::{self, ReadingNextLine},
-    Mnemonic, PeekableFileReader, Token,
+    LibLasErrorOld::{self, ReadingNextLine},
+    MnemonicOld, PeekableFileReader, TokenOld,
 };
 use serde::{self, Deserialize, Serialize, Serializer, ser::SerializeMap};
 
 #[derive(Debug, Default, Deserialize)]
-pub struct VersionInformation {
+pub struct VersionInformationOld {
     #[serde(rename = "VERS")]
-    pub version: Mnemonic,
+    pub version: MnemonicOld,
     #[serde(rename = "WRAP")]
-    pub wrap: Mnemonic,
-    pub additional: Vec<Mnemonic>,
+    pub wrap: MnemonicOld,
+    pub additional: Vec<MnemonicOld>,
     pub comments: Vec<String>,
 }
 
-impl VersionInformation {
-    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
+impl VersionInformationOld {
+    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasErrorOld> {
         let mut this = Self::default();
 
         // Comments were above the "~Version Information" section.
@@ -26,23 +26,23 @@ impl VersionInformation {
         }
 
         while let Some(Ok(peeked_line)) = reader.peek() {
-            if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
+            if peeked_line.trim().to_string().starts_with(&TokenOld::Tilde()) {
                 break;
             }
 
             let next_line = reader.next().ok_or(ReadingNextLine)??.trim().to_string();
 
-            if next_line.starts_with(&Token::Comment()) {
+            if next_line.starts_with(&TokenOld::Comment()) {
                 current_comments.push(next_line.clone());
                 continue;
             }
 
             if next_line.starts_with("VERS") {
-                this.version = Mnemonic::from_str(&next_line, current_comments)?;
+                this.version = MnemonicOld::from_str(&next_line, current_comments)?;
             } else if next_line.starts_with("WRAP") {
-                this.wrap = Mnemonic::from_str(&next_line, current_comments)?;
+                this.wrap = MnemonicOld::from_str(&next_line, current_comments)?;
             } else {
-                let x = Mnemonic::from_str(&next_line, current_comments)?;
+                let x = MnemonicOld::from_str(&next_line, current_comments)?;
                 this.additional.push(x);
             }
         }
@@ -65,7 +65,7 @@ impl VersionInformation {
         return output;
     }
 
-    pub fn new(version: Mnemonic, wrap: Mnemonic, extra: Vec<Mnemonic>, comments: Vec<String>) -> Self {
+    pub fn new(version: MnemonicOld, wrap: MnemonicOld, extra: Vec<MnemonicOld>, comments: Vec<String>) -> Self {
         return Self {
             version,
             wrap,
@@ -75,7 +75,7 @@ impl VersionInformation {
     }
 }
 
-impl Serialize for VersionInformation {
+impl Serialize for VersionInformationOld {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

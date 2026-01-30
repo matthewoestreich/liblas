@@ -1,17 +1,17 @@
 use crate::{
-    LibLasError::{self, ReadingNextLine},
-    PeekableFileReader, Token,
+    LibLasErrorOld::{self, ReadingNextLine},
+    PeekableFileReader, TokenOld,
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct OtherInformation {
+pub struct OtherInformationOld {
     pub text: String,
     pub comments: Vec<String>,
 }
 
-impl OtherInformation {
-    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
+impl OtherInformationOld {
+    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasErrorOld> {
         let mut this = Self::default();
 
         // Comments were above the "~Other Info" section
@@ -22,13 +22,13 @@ impl OtherInformation {
         }
 
         while let Some(Ok(peeked_line)) = reader.peek() {
-            if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
+            if peeked_line.trim().to_string().starts_with(&TokenOld::Tilde()) {
                 break;
             }
 
             let line = &reader.next().ok_or(ReadingNextLine)??.trim().to_string();
 
-            if line.starts_with(&Token::Comment()) {
+            if line.starts_with(&TokenOld::Comment()) {
                 current_comments.push(line.clone());
                 continue;
             }

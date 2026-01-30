@@ -1,6 +1,6 @@
 use crate::{
-    LibLasError::{self, *},
-    Token,
+    LibLasErrorOld::{self, *},
+    TokenOld,
 };
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +13,7 @@ pub enum MnemonicData {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Mnemonic {
+pub struct MnemonicOld {
     // Name of mnemonic
     pub name: String,
     // Unit of measurement (eg. FT (feet), DEGF (degrees farenheit))
@@ -32,8 +32,8 @@ impl Default for MnemonicData {
     }
 }
 
-impl Mnemonic {
-    pub fn from_str(line: &str, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
+impl MnemonicOld {
+    pub fn from_str(line: &str, current_comments: &mut Vec<String>) -> Result<Self, LibLasErrorOld> {
         let mut this = Self::default();
 
         if !current_comments.is_empty() {
@@ -43,15 +43,15 @@ impl Mnemonic {
 
         // Split at the *last* colon to isolate description
         let (before_colon, after_colon) = line
-            .rsplit_once(&Token::Colon())
-            .ok_or_else(|| return MissingRequiredDelimeter(Token::Colon()))?;
+            .rsplit_once(&TokenOld::Colon())
+            .ok_or_else(|| return MissingRequiredDelimeter(TokenOld::Colon()))?;
 
         this.description = after_colon.trim().to_string();
 
         // Find the position of the '.' in the left-hand part
         let dot_index = before_colon
-            .find(&Token::Period())
-            .ok_or_else(|| return MissingRequiredDelimeter(Token::Period()))?;
+            .find(&TokenOld::Period())
+            .ok_or_else(|| return MissingRequiredDelimeter(TokenOld::Period()))?;
 
         // Everything before '.' is mnemonic (trim it)
         this.name = before_colon[..dot_index].trim().to_string();

@@ -1,46 +1,46 @@
-use crate::{LibLasError, Mnemonic, PeekableFileReader, Token, errors::LibLasError::*};
+use crate::{LibLasErrorOld, MnemonicOld, PeekableFileReader, TokenOld, errors::LibLasErrorOld::*};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 
 #[derive(Default, Debug, Deserialize)]
-pub struct WellInformation {
+pub struct WellInformationOld {
     #[serde(rename = "STRT")]
-    pub strt: Mnemonic,
+    pub strt: MnemonicOld,
     #[serde(rename = "STOP")]
-    pub stop: Mnemonic,
+    pub stop: MnemonicOld,
     #[serde(rename = "STEP")]
-    pub step: Mnemonic,
+    pub step: MnemonicOld,
     #[serde(rename = "NULL")]
-    pub null: Mnemonic,
+    pub null: MnemonicOld,
     #[serde(rename = "COMP")]
-    pub comp: Mnemonic,
+    pub comp: MnemonicOld,
     #[serde(rename = "WELL")]
-    pub well: Mnemonic,
+    pub well: MnemonicOld,
     #[serde(rename = "FLD")]
-    pub fld: Mnemonic,
+    pub fld: MnemonicOld,
     #[serde(rename = "LOC")]
-    pub loc: Mnemonic,
+    pub loc: MnemonicOld,
     #[serde(rename = "PROV")]
-    pub prov: Mnemonic,
+    pub prov: MnemonicOld,
     #[serde(rename = "CNTY")]
-    pub cnty: Mnemonic,
+    pub cnty: MnemonicOld,
     #[serde(rename = "STAT")]
-    pub stat: Mnemonic,
+    pub stat: MnemonicOld,
     #[serde(rename = "CTRY")]
-    pub ctry: Mnemonic,
+    pub ctry: MnemonicOld,
     #[serde(rename = "SRVC")]
-    pub srvc: Mnemonic,
+    pub srvc: MnemonicOld,
     #[serde(rename = "DATE")]
-    pub date: Mnemonic,
+    pub date: MnemonicOld,
     #[serde(rename = "UWI")]
-    pub uwi: Mnemonic,
+    pub uwi: MnemonicOld,
     #[serde(rename = "API")]
-    pub api: Mnemonic,
-    pub additional: Vec<Mnemonic>,
+    pub api: MnemonicOld,
+    pub additional: Vec<MnemonicOld>,
     pub comments: Vec<String>,
 }
 
-impl WellInformation {
-    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
+impl WellInformationOld {
+    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasErrorOld> {
         let mut this = Self::default();
 
         // Comments were above the "~Well Information" section
@@ -51,51 +51,51 @@ impl WellInformation {
         }
 
         while let Some(Ok(peeked_line)) = reader.peek() {
-            if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
+            if peeked_line.trim().to_string().starts_with(&TokenOld::Tilde()) {
                 break;
             }
 
             let line = reader.next().ok_or(ReadingNextLine)??.trim().to_string();
 
-            if line.starts_with(&Token::Comment()) {
+            if line.starts_with(&TokenOld::Comment()) {
                 current_comments.push(line.clone());
                 continue;
             }
 
             if line.starts_with("STRT") {
-                this.strt = Mnemonic::from_str(&line, current_comments)?;
+                this.strt = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("STOP") {
-                this.stop = Mnemonic::from_str(&line, current_comments)?;
+                this.stop = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("STEP") {
-                this.step = Mnemonic::from_str(&line, current_comments)?;
+                this.step = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("NULL") {
-                this.null = Mnemonic::from_str(&line, current_comments)?;
+                this.null = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("COMP") {
-                this.comp = Mnemonic::from_str(&line, current_comments)?;
+                this.comp = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("WELL") {
-                this.well = Mnemonic::from_str(&line, current_comments)?;
+                this.well = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("FLD") {
-                this.fld = Mnemonic::from_str(&line, current_comments)?;
+                this.fld = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("LOC") {
-                this.loc = Mnemonic::from_str(&line, current_comments)?;
+                this.loc = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("PROV") {
-                this.prov = Mnemonic::from_str(&line, current_comments)?;
+                this.prov = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("CNTY") {
-                this.cnty = Mnemonic::from_str(&line, current_comments)?;
+                this.cnty = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("STAT") {
-                this.stat = Mnemonic::from_str(&line, current_comments)?;
+                this.stat = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("CTRY") {
-                this.ctry = Mnemonic::from_str(&line, current_comments)?;
+                this.ctry = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("SRVC") {
-                this.srvc = Mnemonic::from_str(&line, current_comments)?;
+                this.srvc = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("DATE") {
-                this.date = Mnemonic::from_str(&line, current_comments)?;
+                this.date = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("UWI") {
-                this.uwi = Mnemonic::from_str(&line, current_comments)?;
+                this.uwi = MnemonicOld::from_str(&line, current_comments)?;
             } else if line.starts_with("API") {
-                this.api = Mnemonic::from_str(&line, current_comments)?;
+                this.api = MnemonicOld::from_str(&line, current_comments)?;
             } else {
-                let x = Mnemonic::from_str(&line, current_comments)?;
+                let x = MnemonicOld::from_str(&line, current_comments)?;
                 this.additional.push(x);
             }
         }
@@ -211,23 +211,23 @@ impl WellInformation {
 
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        strt: Mnemonic,
-        stop: Mnemonic,
-        step: Mnemonic,
-        null: Mnemonic,
-        comp: Mnemonic,
-        well: Mnemonic,
-        fld: Mnemonic,
-        loc: Mnemonic,
-        prov: Mnemonic,
-        cnty: Mnemonic,
-        stat: Mnemonic,
-        ctry: Mnemonic,
-        srvc: Mnemonic,
-        date: Mnemonic,
-        uwi: Mnemonic,
-        api: Mnemonic,
-        additional: Vec<Mnemonic>,
+        strt: MnemonicOld,
+        stop: MnemonicOld,
+        step: MnemonicOld,
+        null: MnemonicOld,
+        comp: MnemonicOld,
+        well: MnemonicOld,
+        fld: MnemonicOld,
+        loc: MnemonicOld,
+        prov: MnemonicOld,
+        cnty: MnemonicOld,
+        stat: MnemonicOld,
+        ctry: MnemonicOld,
+        srvc: MnemonicOld,
+        date: MnemonicOld,
+        uwi: MnemonicOld,
+        api: MnemonicOld,
+        additional: Vec<MnemonicOld>,
         comments: Vec<String>,
     ) -> Self {
         return Self {
@@ -253,7 +253,7 @@ impl WellInformation {
     }
 }
 
-impl Serialize for WellInformation {
+impl Serialize for WellInformationOld {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

@@ -1,17 +1,17 @@
 use crate::{
-    LibLasError::{self, ReadingNextLine},
-    Mnemonic, PeekableFileReader, Token,
+    LibLasErrorOld::{self, ReadingNextLine},
+    MnemonicOld, PeekableFileReader, TokenOld,
 };
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeMap};
 
 #[derive(Debug, Default, Deserialize)]
-pub struct ParameterInformation {
-    pub parameters: Vec<Mnemonic>,
+pub struct ParameterInformationOld {
+    pub parameters: Vec<MnemonicOld>,
     pub comments: Vec<String>,
 }
 
-impl ParameterInformation {
-    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasError> {
+impl ParameterInformationOld {
+    pub fn parse(reader: &mut PeekableFileReader, current_comments: &mut Vec<String>) -> Result<Self, LibLasErrorOld> {
         let mut this = Self::default();
 
         // Comments were above the "~Parameter Info" line
@@ -22,18 +22,18 @@ impl ParameterInformation {
         }
 
         while let Some(Ok(peeked_line)) = reader.peek() {
-            if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
+            if peeked_line.trim().to_string().starts_with(&TokenOld::Tilde()) {
                 break;
             }
 
             let line = reader.next().ok_or(ReadingNextLine)??.trim().to_string();
 
-            if line.starts_with(&Token::Comment()) {
+            if line.starts_with(&TokenOld::Comment()) {
                 current_comments.push(line.clone());
                 continue;
             }
 
-            let mnemonic = Mnemonic::from_str(&line, current_comments)?;
+            let mnemonic = MnemonicOld::from_str(&line, current_comments)?;
             this.parameters.push(mnemonic);
         }
 
@@ -56,12 +56,12 @@ impl ParameterInformation {
         return Some(output);
     }
 
-    pub fn new(parameters: Vec<Mnemonic>, comments: Vec<String>) -> Self {
+    pub fn new(parameters: Vec<MnemonicOld>, comments: Vec<String>) -> Self {
         return Self { parameters, comments };
     }
 }
 
-impl Serialize for ParameterInformation {
+impl Serialize for ParameterInformationOld {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

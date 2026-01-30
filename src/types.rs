@@ -7,7 +7,7 @@ use std::{
 pub type PeekableFileReader = Peekable<Lines<BufReader<File>>>;
 
 #[derive(Eq, Hash, PartialEq, Debug)]
-pub(crate) enum Section {
+pub(crate) enum SectionOld {
     VersionInformation,
     WellInformation,
     AsciiLogData,
@@ -16,13 +16,13 @@ pub(crate) enum Section {
     ParameterInformation,
 }
 
-impl Section {
+impl SectionOld {
     pub const COUNT: usize = 6;
 }
 
-pub struct Token {}
+pub struct TokenOld {}
 #[allow(non_snake_case)]
-impl Token {
+impl TokenOld {
     pub fn Colon() -> String {
         return ":".into();
     }

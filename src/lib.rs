@@ -1,4 +1,8 @@
 #![warn(clippy::implicit_return)]
+#![allow(clippy::needless_return)]
+
+mod vtwo;
+pub use vtwo::*;
 
 mod ascii_log_data;
 mod curve_information;

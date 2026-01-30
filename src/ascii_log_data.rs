@@ -1,7 +1,7 @@
 use crate::{
-    CurveInformation,
-    LibLasError::{self, *},
-    PeekableFileReader, Token,
+    CurveInformationOld,
+    LibLasErrorOld::{self, *},
+    PeekableFileReader, TokenOld,
 };
 use serde::{
     self, Deserialize, Serialize,
@@ -9,29 +9,29 @@ use serde::{
 };
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct AsciiColumn {
+pub struct AsciiColumnOld {
     #[serde(rename = "NAME")]
     pub name: String,
     #[serde(rename = "DATA")]
     pub data: Vec<f64>,
 }
 
-impl AsciiColumn {
+impl AsciiColumnOld {
     pub fn new(name: String, data: Vec<f64>) -> Self {
         return Self { name, data };
     }
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AsciiLogData {
-    pub data: Vec<AsciiColumn>,
+pub struct AsciiLogDataOld {
+    pub data: Vec<AsciiColumnOld>,
     pub comments: Vec<String>,
     #[serde(skip)]
     #[allow(dead_code)]
     pub(crate) has_column_names: bool,
 }
 
-impl Default for AsciiLogData {
+impl Default for AsciiLogDataOld {
     fn default() -> Self {
         return Self {
             data: vec![],
@@ -41,13 +41,13 @@ impl Default for AsciiLogData {
     }
 }
 
-impl AsciiLogData {
+impl AsciiLogDataOld {
     pub fn parse(
         reader: &mut PeekableFileReader,
         header_line: String,
-        curve_info: &CurveInformation,
+        curve_info: &CurveInformationOld,
         current_comments: &mut Vec<String>,
-    ) -> Result<Self, LibLasError> {
+    ) -> Result<Self, LibLasErrorOld> {
         let header = header_line.clone();
         let column_names = Self::parse_header(header_line, curve_info)?;
 
@@ -55,7 +55,7 @@ impl AsciiLogData {
             comments: vec![],
             data: column_names
                 .into_iter()
-                .map(|name| return AsciiColumn { name, data: Vec::new() })
+                .map(|name| return AsciiColumnOld { name, data: Vec::new() })
                 .collect(),
             has_column_names: header.split_whitespace().nth(1).is_some(),
         };
@@ -68,14 +68,14 @@ impl AsciiLogData {
         }
 
         while let Some(Ok(peeked_line)) = reader.peek() {
-            if peeked_line.trim().to_string().starts_with(&Token::Tilde()) {
+            if peeked_line.trim().to_string().starts_with(&TokenOld::Tilde()) {
                 break;
             }
 
             let next_line = reader.next().ok_or(ReadingNextLine)??;
 
             // TODO : SKIPPING COMMENTS FOR NOW
-            if next_line.starts_with(&Token::Comment()) {
+            if next_line.starts_with(&TokenOld::Comment()) {
                 continue;
             }
 
@@ -107,7 +107,7 @@ impl AsciiLogData {
         return Ok(this);
     }
 
-    fn parse_header(header_line: String, curve_info: &CurveInformation) -> Result<Vec<String>, LibLasError> {
+    fn parse_header(header_line: String, curve_info: &CurveInformationOld) -> Result<Vec<String>, LibLasErrorOld> {
         // For pulling headers from "~A" header line. Example "~A" line (as string):
         //        "~A  Depth        GR        AMP3FT      TT3FT       AMPS1"
         // In "minified" versions of .las files, the headers (everything after "~A") may not exist.
@@ -116,7 +116,7 @@ impl AsciiLogData {
         let first_token = header_tokens
             .next()
             .ok_or(MalformedAsciiData("Empty header line".into()))?;
-        if first_token != Token::AsciiSection() {
+        if first_token != TokenOld::AsciiSection() {
             return Err(MalformedAsciiData("Header line must start with ~A".into()));
         }
 
@@ -174,7 +174,7 @@ impl AsciiLogData {
         return result;
     }
 
-    pub fn new(data: Vec<AsciiColumn>, comments: Vec<String>) -> Self {
+    pub fn new(data: Vec<AsciiColumnOld>, comments: Vec<String>) -> Self {
         return Self {
             data,
             comments,
@@ -183,7 +183,7 @@ impl AsciiLogData {
     }
 }
 
-impl Serialize for AsciiLogData {
+impl Serialize for AsciiLogDataOld {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

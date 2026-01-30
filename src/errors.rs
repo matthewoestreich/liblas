@@ -5,7 +5,7 @@ use std::{
 };
 
 #[derive(Debug)]
-pub enum LibLasError {
+pub enum LibLasErrorOld {
     IoError(io::Error),
     ParseFloatError(num::ParseFloatError),
     InvalidLasFile(String),
@@ -25,23 +25,23 @@ pub enum LibLasError {
     VersionInformationNotFirst,
 }
 
-impl error::Error for LibLasError {}
+impl error::Error for LibLasErrorOld {}
 
-impl From<io::Error> for LibLasError {
+impl From<io::Error> for LibLasErrorOld {
     fn from(e: io::Error) -> Self {
-        return LibLasError::IoError(e);
+        return LibLasErrorOld::IoError(e);
     }
 }
 
-impl From<num::ParseFloatError> for LibLasError {
+impl From<num::ParseFloatError> for LibLasErrorOld {
     fn from(e: num::ParseFloatError) -> Self {
-        return LibLasError::ParseFloatError(e);
+        return LibLasErrorOld::ParseFloatError(e);
     }
 }
 
-impl Display for LibLasError {
+impl Display for LibLasErrorOld {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        use LibLasError::*;
+        use LibLasErrorOld::*;
         #[allow(clippy::implicit_return)]
         match self {
             VersionInformationNotFirst => write!(
