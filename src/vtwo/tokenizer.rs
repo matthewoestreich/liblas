@@ -1,4 +1,3 @@
-use crate::vtwo::types::LasToken;
 use std::io::{self, BufRead};
 
 pub struct LasTokenizer<R>
@@ -69,4 +68,23 @@ impl<R: BufRead> Iterator for LasTokenizer<R> {
             Err(e) => Some(Err(e)),
         }
     }
+}
+
+#[derive(Debug)]
+pub enum LasToken {
+    SectionHeader {
+        name: String, // "~Curve Information Section"
+        line_number: usize,
+    },
+    Comment {
+        text: String,
+        line_number: usize,
+    },
+    DataLine {
+        raw: String,
+        line_number: usize,
+    },
+    Blank {
+        line_number: usize,
+    },
 }

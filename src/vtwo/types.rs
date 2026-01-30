@@ -1,25 +1,6 @@
 use crate::vtwo::errors::ParseError;
 
 #[derive(Debug)]
-pub enum LasToken {
-    SectionHeader {
-        name: String, // "~Curve Information Section"
-        line_number: usize,
-    },
-    Comment {
-        text: String,
-        line_number: usize,
-    },
-    DataLine {
-        raw: String,
-        line_number: usize,
-    },
-    Blank {
-        line_number: usize,
-    },
-}
-
-#[derive(Debug)]
 pub struct LasFile {
     pub sections: Vec<Section>,
 }
@@ -163,12 +144,12 @@ pub enum SectionKind {
 impl From<&str> for SectionKind {
     fn from(value: &str) -> Self {
         match value.to_lowercase() {
-            v if v.starts_with("version") | v.starts_with("v") => SectionKind::Version,
-            v if v.starts_with("well") | v.starts_with("w") => SectionKind::Well,
-            v if v.starts_with("curve") | v.starts_with("c") => SectionKind::Curve,
-            v if v.starts_with("parameter") | v.starts_with("p") => SectionKind::Parameter,
-            v if v.starts_with("other") | v.starts_with("o") => SectionKind::Other,
-            v if v.starts_with("ascii") | v.starts_with("a") => SectionKind::AsciiLogData,
+            v if v.starts_with("version") || v.starts_with("v") => SectionKind::Version,
+            v if v.starts_with("well") || v.starts_with("w") => SectionKind::Well,
+            v if v.starts_with("curve") || v.starts_with("c") => SectionKind::Curve,
+            v if v.starts_with("parameter") || v.starts_with("p") => SectionKind::Parameter,
+            v if v.starts_with("other") || v.starts_with("o") => SectionKind::Other,
+            v if v.starts_with("ascii") || v.starts_with("a") => SectionKind::AsciiLogData,
             _ => unreachable!("unrecognized section! {value}"),
         }
     }

@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::vtwo::types::LasToken;
+use crate::tokenizer::LasToken;
 
 #[derive(Debug)]
 pub enum ParseError {

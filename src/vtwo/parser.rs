@@ -1,6 +1,9 @@
-use crate::vtwo::{
-    errors::ParseError,
-    types::{LasFile, LasToken, Section},
+use crate::{
+    tokenizer::LasToken,
+    vtwo::{
+        errors::ParseError,
+        types::{LasFile, Section},
+    },
 };
 use std::iter::Peekable;
 
