@@ -70,7 +70,7 @@ impl Section {
             match unit_and_data.split_once(char::is_whitespace) {
                 // Both unit and data.
                 Some((u, rest)) => (Some(u.trim().to_string()), rest.trim()),
-                // No unit but data.
+                // No data but unit.
                 None => (Some(unit_and_data.trim().to_string()), ""),
             }
         };
