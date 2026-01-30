@@ -1,10 +1,8 @@
 use crate::{
     LasFile,
+    errors::ParseError,
+    section::{Section, SectionKind},
     tokenizer::LasToken,
-    vtwo::{
-        errors::ParseError,
-        section::{Section, SectionKind},
-    },
 };
 use std::{
     collections::{HashMap, hash_map::Entry},

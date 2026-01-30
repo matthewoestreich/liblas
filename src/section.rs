@@ -1,4 +1,4 @@
-use crate::vtwo::errors::ParseError;
+use crate::errors::ParseError;
 
 #[derive(Debug)]
 pub struct Section {
