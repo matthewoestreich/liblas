@@ -1,12 +1,15 @@
 use std::io;
 
-use crate::section::SectionKind;
+use crate::parser::SectionKind;
 
 #[derive(Debug)]
 pub enum ParseError {
     Io(io::Error),
     MissingSection {
         section: SectionKind,
+    },
+    MissingMultipleSections {
+        missing_sections: Vec<SectionKind>,
     },
     MissingRequiredKey {
         key: String,
@@ -16,6 +19,12 @@ pub enum ParseError {
     MissingDelimiter {
         delimiter: String,
         line_number: usize,
+        line: String,
+    },
+    DelimetedValueContainsInvalidChars {
+        key: String,
+        line_number: usize,
+        invalid_chars: Vec<char>,
         line: String,
     },
     DuplicateSection {
@@ -28,6 +37,15 @@ pub enum ParseError {
     },
     AsciiLogDataSectionNotLast {
         line_number: usize,
+    },
+    InvalidAsciiValue {
+        raw_value: String,
+        line_number: usize,
+    },
+    AsciiColumnsMismatch {
+        line_number: usize,
+        num_cols_from_curve_section: usize,
+        num_cols_in_ascii_section: usize,
     },
 }
 

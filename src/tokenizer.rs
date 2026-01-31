@@ -58,7 +58,10 @@ where
     }
 }
 
-impl<R: BufRead> Iterator for LasTokenizer<R> {
+impl<R> Iterator for LasTokenizer<R>
+where
+    R: BufRead,
+{
     type Item = Result<LasToken, std::io::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {

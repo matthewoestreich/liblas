@@ -1,19 +1,22 @@
-use crate::{
-    LasFile,
-    errors::ParseError,
-    section::{Section, SectionKind},
-    tokenizer::LasToken,
-};
+use crate::{LasFile, errors::ParseError, tokenizer::LasToken};
 use std::{
     collections::{HashMap, hash_map::Entry},
     iter::Peekable,
 };
 
+const REQUIRED_SECTIONS: [SectionKind; 4] = [
+    SectionKind::Version,
+    SectionKind::Well,
+    SectionKind::Curve,
+    SectionKind::AsciiLogData,
+];
+
 #[derive(Debug, PartialEq, Eq)]
 enum ParserState {
     Start,
     Working,
-    Finished,
+    // We set to end before parsing ASCII log data. Since it HAS to be the last section in a las file.
+    End,
 }
 
 pub struct LasParser<I>
@@ -45,32 +48,66 @@ where
         // A token is equivalent to a line within the original las file.
         while let Some(token) = self.next_token()? {
             match token {
-                LasToken::SectionHeader { name, line_number } => {
-                    self.validate_and_set_current_section(&mut file, name.as_str(), line_number)?;
-                }
+                // We are parsing a data line within a section.
                 LasToken::DataLine { raw, line_number } => {
                     if let Some(section) = self.current_section.as_mut() {
                         section.parse_line(&raw, line_number)?;
                     }
                 }
+
+                // We have hit a new section.
+                LasToken::SectionHeader { name, line_number } => {
+                    let mut next_section = Section::new(name.to_string(), line_number);
+                    let kind = next_section.header.kind;
+
+                    // Version information section must be first!
+                    if self.state == ParserState::Start && kind != SectionKind::Version {
+                        return Err(ParseError::VersionInformationNotFirst { line_number });
+                    }
+                    // ASCII log data section must be last
+                    if self.state == ParserState::End && kind != SectionKind::AsciiLogData {
+                        return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
+                    }
+                    // If we have a parsed section already, add it to file.
+                    if let Some(curr_sect) = self.current_section.take() {
+                        file.sections.push(curr_sect);
+                    }
+
+                    self.state = match kind {
+                        SectionKind::AsciiLogData => ParserState::End,
+                        _ => ParserState::Working,
+                    };
+
+                    // Check for duplicate section.
+                    match self.parsed_sections.entry(kind) {
+                        Entry::Occupied(e) => {
+                            return Err(ParseError::DuplicateSection {
+                                section: kind,
+                                line_number,
+                                duplicate_line_number: *e.get(),
+                            });
+                        }
+                        Entry::Vacant(e) => e.insert(line_number),
+                    };
+
+                    if kind == SectionKind::AsciiLogData {
+                        self.set_ascii_headers_from_curve_section(&file, &mut next_section)?;
+                    }
+
+                    self.current_section = Some(next_section);
+                }
+
                 // TODO : parse comments
                 _ => {}
             }
         }
 
-        // If we made it out of the while loop while still in Start state,
-        // it means we never saw the Version information section, which is required.
-        if self.state == ParserState::Start {
-            return Err(ParseError::MissingSection {
-                section: SectionKind::Version,
-            });
-        }
-        // If we are not in Finished state, it means we never saw the ASCII Log Data
-        // section, which is required.
-        if self.state != ParserState::Finished {
-            return Err(ParseError::MissingSection {
-                section: SectionKind::AsciiLogData,
-            });
+        for required_section in REQUIRED_SECTIONS.iter() {
+            if !self.parsed_sections.contains_key(required_section) {
+                return Err(ParseError::MissingSection {
+                    section: *required_section,
+                });
+            }
         }
 
         if let Some(section) = self.current_section.take() {
@@ -88,52 +125,417 @@ where
         }
     }
 
-    fn validate_and_set_current_section(
+    fn set_ascii_headers_from_curve_section(
         &mut self,
-        file: &mut LasFile,
-        name: &str,
-        line: usize,
+        file: &LasFile,
+        section: &mut Section,
     ) -> Result<(), ParseError> {
-        let kind = SectionKind::from(name);
+        let curve_section = file
+            .sections
+            .iter()
+            .find(|s| s.header.kind == SectionKind::Curve)
+            .ok_or(ParseError::MissingSection {
+                section: SectionKind::Curve,
+            })?;
 
-        // Version information section must be first!
-        if self.state == ParserState::Start && kind != SectionKind::Version {
-            return Err(ParseError::VersionInformationNotFirst { line_number: line });
+        let headers: Vec<String> = curve_section
+            .entries
+            .iter()
+            .filter_map(|e| {
+                if let SectionEntry::Delimited(d) = e {
+                    Some(d.mnemonic.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        section.ascii_headers = Some(headers);
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct Section {
+    pub header: SectionHeader,
+    pub line: usize,
+    pub entries: Vec<SectionEntry>,
+    pub ascii_headers: Option<Vec<String>>,
+    pub ascii_rows: Vec<Vec<f64>>,
+}
+
+impl Section {
+    pub fn new(name: String, line: usize) -> Self {
+        Self {
+            header: SectionHeader {
+                kind: SectionKind::from(name.as_str()),
+                raw: name,
+            },
+            line,
+            entries: vec![],
+            ascii_headers: None,
+            ascii_rows: vec![],
+        }
+    }
+
+    fn parse_ascii_log_line(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
+        // If we are missing headers here it means we haven't parsed the Curve section yet.
+        // Since ASCII section has to be the last section (per CWLS v2.0) it means we have
+        // and invalid LAS file.
+        let headers = self
+            .ascii_headers
+            .as_ref()
+            .ok_or(ParseError::AsciiLogDataSectionNotLast { line_number })?;
+
+        let values: Vec<f64> = raw
+            .split_whitespace()
+            .map(|s| {
+                s.parse::<f64>().map_err(|_| ParseError::InvalidAsciiValue {
+                    line_number,
+                    raw_value: s.to_string(),
+                })
+            })
+            .collect::<Result<_, _>>()?;
+
+        if values.len() != headers.len() {
+            return Err(ParseError::AsciiColumnsMismatch {
+                line_number,
+                num_cols_from_curve_section: headers.len(),
+                num_cols_in_ascii_section: values.len(),
+            });
         }
 
-        // ASCII log data section must be last
-        if self.state == ParserState::Finished && kind != SectionKind::AsciiLogData {
-            return Err(ParseError::AsciiLogDataSectionNotLast { line_number: line });
+        self.ascii_rows.push(values);
+        Ok(())
+    }
+
+    pub fn parse_line(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
+        if self.header.kind == SectionKind::AsciiLogData {
+            return self.parse_ascii_log_line(raw, line_number);
         }
 
-        // If we have a parsed section already, add it to file.
-        if let Some(curr_sect) = self.current_section.take() {
-            file.sections.push(curr_sect);
+        if self.header.kind == SectionKind::Other {
+            self.entries.push(SectionEntry::Raw(raw.trim().to_string()));
+            return Ok(());
         }
 
-        self.state = match kind {
-            SectionKind::AsciiLogData => ParserState::Finished,
-            _ => ParserState::Working,
-        };
+        // ############################
+        // -- LAS DATA LINE LAYOUT --
+        // ############################
+        //
+        // MNEM.UNITS    DATA   : DESCRIPTION
+        //     |     |          |
+        //     |     |          +-- last ':' on line
+        //     |     +-- first space ' ' AFTER first '.'
+        //     +-- first '.' in line
+        //
+        // -- MNEM -- (required)
+        // "mnemonic. This mnemonic can be of any length but must not contain any internal
+        // spaces, dots, or colons. Spaces are permitted in front of the mnemonic and between the
+        // end of the mnemonic and the dot."
+        //
+        // -- UNITS -- (optional)
+        // "units of the mnemonic (if applicable). The units, if used, must be located directly
+        // after the dot. There must be no spaces between the units and the dot. The units can be of
+        // any length but must not contain any colons or internal spaces."
+        //
+        // -- DATA (aka VALUE) -- (optional)
+        // "value of, or data relating to the mnemonic. This value or input can be of any length
+        // and can contain spaces, dots or colons as appropriate. It must be preceded by at least one
+        // space to demarcate it from the units and must be to the left of the last colon in the line."
+        //
+        // -- DESCRIPTION -- (optional)
+        // "description or definition of the mnemonic. It is always located to the right
+        // of the last colon. The length of the line is no longer limited."
 
-        let next_section = Section::new(name.to_string(), line);
-        self.check_for_duplicate_section(next_section.header.kind, line)?;
-        self.current_section = Some(next_section);
+        let mut space: Option<usize> = None;
+        let mut period: Option<usize> = None;
+        let mut colon: Option<usize> = None;
+
+        for (i, bytes) in raw.bytes().enumerate() {
+            match bytes as char {
+                // We only need to make note of the index for the first
+                // space in a line that comes AFTER the first period in a line.
+                ' ' if space.is_none() && period.is_some() => {
+                    space = Some(i);
+                }
+                // Only record index of first period in a line.
+                '.' if period.is_none() => {
+                    period = Some(i);
+                }
+                // We need to use the last colon on a line as a delimiter.
+                // Therefore, update the colon index each time we see one.
+                ':' => {
+                    colon = Some(i);
+                }
+                _ => {}
+            };
+        }
+
+        let mut mnemonic: Option<String> = None;
+        let mut unit: Option<String> = None;
+        let mut value: Option<LasValue> = None;
+        let mut description: Option<String> = None;
+
+        if let Some(period_index) = period {
+            // Mnemonic is required! Everything from start of line until first period in a line is mnemonic.
+            let raw_mnemonic = raw[..period_index].trim().to_string();
+            if raw_mnemonic.is_empty() {
+                return Err(ParseError::MissingRequiredKey {
+                    key: "mnemonic".to_string(),
+                    line_number,
+                    line: raw.to_string(),
+                });
+            }
+            let invalid_mnemonic_chars = str_contains(&raw_mnemonic, &['.', ':', ' ']);
+            if !invalid_mnemonic_chars.is_empty() {
+                return Err(ParseError::DelimetedValueContainsInvalidChars {
+                    key: "mnemonic".to_string(),
+                    line_number,
+                    invalid_chars: invalid_mnemonic_chars,
+                    line: raw.to_string(),
+                });
+            }
+
+            mnemonic = Some(raw_mnemonic);
+
+            if let Some(space_index) = space
+                && let Some(colon_index) = colon
+            {
+                // If there is a space between dot and unit, it is invalid.
+                let raw_unit = raw[period_index..space_index].trim_start_matches('.').to_string();
+                if raw_unit.starts_with(" ") {
+                    return Err(ParseError::DelimetedValueContainsInvalidChars {
+                        key: "units".to_string(),
+                        line_number,
+                        invalid_chars: Vec::from([' ']),
+                        line: raw.to_string(),
+                    });
+                }
+                let invalid_unit_chars = str_contains(&raw_unit, &[' ', ':']);
+                if !invalid_unit_chars.is_empty() {
+                    return Err(ParseError::DelimetedValueContainsInvalidChars {
+                        key: "units".to_string(),
+                        line_number,
+                        invalid_chars: invalid_unit_chars,
+                        line: raw.to_string(),
+                    });
+                }
+
+                unit = Some(raw_unit);
+
+                if space_index > colon_index {
+                    return Err(ParseError::MissingDelimiter {
+                        delimiter: "Missing ' ' in line! Line must contain at least one space between first period on line and last colon on line!".to_string(),
+                        line_number,
+                        line: raw.to_string(),
+                    });
+                }
+
+                value = LasValue::parse(&raw[space_index..colon_index]);
+            }
+        }
+
+        if let Some(colon_index) = colon {
+            // Everything from the last recorded colon index until end of line is description.
+            description = Some(raw[colon_index + 1..raw.len()].trim().to_string());
+        }
+
+        self.entries.push(SectionEntry::Delimited(DelimitedEntry {
+            mnemonic: mnemonic.expect("verified some"),
+            unit: unit.filter(|u| !u.is_empty()),
+            value,
+            description: description.filter(|d| !d.is_empty()),
+        }));
 
         Ok(())
     }
 
-    fn check_for_duplicate_section(&mut self, section: SectionKind, line_number: usize) -> Result<(), ParseError> {
-        match self.parsed_sections.entry(section) {
-            Entry::Occupied(e) => Err(ParseError::DuplicateSection {
-                section,
-                line_number,
-                duplicate_line_number: *e.get(),
-            }),
-            Entry::Vacant(vacant_entry) => {
-                _ = vacant_entry.insert(line_number);
-                Ok(())
+    pub fn parse_line_old(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
+        if self.header.kind == SectionKind::AsciiLogData {
+            // If we are missing headers here it means we haven't parsed the Curve section yet.
+            // Since ASCII section has to be the last section (per CWLS v2.0) it means we have
+            // and invalid LAS file.
+            let headers = self
+                .ascii_headers
+                .as_ref()
+                .ok_or(ParseError::AsciiLogDataSectionNotLast { line_number })?;
+
+            let values: Vec<f64> = raw
+                .split_whitespace()
+                .map(|s| {
+                    s.parse::<f64>().map_err(|_| ParseError::InvalidAsciiValue {
+                        line_number,
+                        raw_value: s.to_string(),
+                    })
+                })
+                .collect::<Result<_, _>>()?;
+
+            if values.len() != headers.len() {
+                return Err(ParseError::AsciiColumnsMismatch {
+                    line_number,
+                    num_cols_from_curve_section: headers.len(),
+                    num_cols_in_ascii_section: values.len(),
+                });
             }
+
+            self.ascii_rows.push(values);
+            return Ok(());
+        }
+
+        if self.header.kind == SectionKind::Other {
+            self.entries.push(SectionEntry::Raw(raw.trim().to_string()));
+            return Ok(());
+        }
+
+        // Split at the *last* colon to isolate description
+        let (before_colon, description) = raw.rsplit_once(':').ok_or_else(|| ParseError::MissingDelimiter {
+            delimiter: "last colon (':') on line".to_string(),
+            line_number,
+            line: raw.to_string(),
+        })?;
+
+        let description = Some(description.trim().to_string());
+
+        // Find the position of the '.' in the left-hand part
+        let dot_index = before_colon.find('.').ok_or_else(|| ParseError::MissingDelimiter {
+            delimiter: "first dot ('.') on line".to_string(),
+            line_number,
+            line: raw.to_string(),
+        })?;
+
+        // Everything before '.' is mnemonic (trim it)
+        let mnemonic = before_colon[..dot_index].trim().to_string();
+
+        // After the '.' is unit (no spaces allowed until value starts) up until first space.
+        // From first space until last colon is data (aka value).
+        // This string will contain both the unit and data.
+        let unit_and_data = &before_colon[dot_index + 1..];
+
+        if unit_and_data.find(' ').is_none() {
+            return Err(ParseError::MissingDelimiter {
+                delimiter: "first space following first dot on line".to_string(),
+                line_number,
+                line: raw.to_string(),
+            });
+        }
+
+        if !unit_and_data.ends_with(char::is_whitespace) {
+            return Err(ParseError::MissingDelimiter {
+                delimiter: "space before last colon on line".to_string(),
+                line_number,
+                line: raw.to_string(),
+            });
+        }
+
+        let (unit, data) = if unit_and_data.is_empty() {
+            (None, "") // No unit and no data (aka value) 
+        } else if unit_and_data.starts_with(char::is_whitespace) {
+            (None, unit_and_data.trim()) // Space immediately after the dot -> no unit
+        } else {
+            // Possibly unit followed by value
+            match unit_and_data.split_once(char::is_whitespace) {
+                // Both unit and data.
+                Some((u, rest)) => (Some(u.trim().to_string()), rest.trim()),
+                // No data but unit.
+                None => (Some(unit_and_data.trim().to_string()), ""),
+            }
+        };
+
+        let entry = SectionEntry::Delimited(DelimitedEntry {
+            mnemonic,
+            unit,
+            description,
+            value: LasValue::parse(data),
+        });
+
+        self.entries.push(entry);
+        Ok(())
+    }
+}
+
+fn str_contains(str: &str, chars: &[char]) -> Vec<char> {
+    let mut matches = vec![];
+    for &c in chars {
+        if str.contains(c) {
+            matches.push(c);
+        }
+    }
+    matches
+}
+
+#[derive(Debug)]
+pub struct SectionHeader {
+    pub raw: String, // eg. "Curve Information Section"
+    pub kind: SectionKind,
+}
+
+impl SectionHeader {
+    pub fn new(name: String, kind: SectionKind) -> Self {
+        Self { raw: name, kind }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SectionKind {
+    Version,
+    Well,
+    Curve,
+    Parameter,
+    Other,
+    AsciiLogData,
+}
+
+impl From<&str> for SectionKind {
+    fn from(value: &str) -> Self {
+        match value {
+            v if v.starts_with("V") => SectionKind::Version,
+            v if v.starts_with("W") => SectionKind::Well,
+            v if v.starts_with("C") => SectionKind::Curve,
+            v if v.starts_with("P") => SectionKind::Parameter,
+            v if v.starts_with("O") => SectionKind::Other,
+            v if v.starts_with("A") => SectionKind::AsciiLogData,
+            _ => unreachable!("unrecognized section! {value}"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SectionEntry {
+    Delimited(DelimitedEntry),
+    AsciiRow(Vec<f64>),
+    Raw(String),
+}
+
+// The sections "VERSION", "WELL", "CURVE" and "PARAMETER" use line delimiters.
+#[derive(Debug)]
+pub struct DelimitedEntry {
+    pub mnemonic: String,
+    pub unit: Option<String>,
+    pub value: Option<LasValue>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum LasValue {
+    Int(i64),
+    Float(f64),
+    Text(String),
+}
+
+impl LasValue {
+    pub fn parse(raw: &str) -> Option<LasValue> {
+        let raw = raw.trim();
+        if let Ok(i) = raw.parse::<i64>() {
+            Some(LasValue::Int(i))
+        } else if raw.contains('.')
+            && let Ok(f) = raw.parse::<f64>()
+        {
+            Some(LasValue::Float(f))
+        } else if raw.is_empty() {
+            None
+        } else {
+            Some(LasValue::Text(raw.to_string()))
         }
     }
 }

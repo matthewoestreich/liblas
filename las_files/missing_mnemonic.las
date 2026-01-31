@@ -3,17 +3,18 @@ VERS. 2.0 : CWLS LOG ASCII STANDARD -VERSION 2.0
 WRAP. NO : ONE LINE PER DEPTH STEP
 ~WELL INFORMATION
 #MNEM.UNIT DATA DESCRIPTION
-# ================================================================================
-# THIS IS WHERE THE ERROR SHOULD BE (line 9)
-# ================================================================================
-STRT.M16700000:START DEPTH
-# ================================================================================
+#----- ----- ---------- -----------------
+#############################################
+# THIS IS WHERE THE ERROR IS
+#############################################
+ .M 6969.0000 :START DEPTH
+#############################################
 STOP .M 1669.7500 :STOP DEPTH
 STEP .M -0.1250 :STEP
 NULL . -999.25 :NULL VALUE
 COMP . ANY OIL COMPANY INC. :COMPANY
 WELL . ANY ET AL 12-34-12-34 :WELL
-FLD . WILDCAT :FIELD
+FLD . WILD CAT :FIELD
 LOC . 12-34-12-34W5M :LOCATION
 PROV . ALBERTA :PROVINCE
 SRVC . ANY LOGGING COMPANY INC. :SERVICE COMPANY
