@@ -37,7 +37,7 @@ mod test {
     #[test]
     fn test_good_sample() {
         let file_path = "las_files/_good_sample_1.las";
-        _ = parse_las_file(open_file(file_path)).unwrap();
+        let _parsed = parse_las_file(open_file(file_path)).unwrap();
     }
 
     #[test]
