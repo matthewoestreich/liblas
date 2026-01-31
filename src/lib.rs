@@ -48,13 +48,6 @@ mod test {
     }
 
     #[test]
-    fn test_prod() {
-        let file_path = "sample_las_files/AEP_Pol_PES_BL_5H_RCBL-modified.las";
-        let parsed = parse_las_file(open_file(file_path)).unwrap();
-        _print_parsed_las_file(&parsed);
-    }
-
-    #[test]
     fn test_missing_mnemonic() {
         let file_path = "las_files/missing_mnemonic.las";
         match parse_las_file(open_file(file_path)) {

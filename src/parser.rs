@@ -254,8 +254,7 @@ impl Section {
 
         for (i, bytes) in raw.bytes().enumerate() {
             match bytes as char {
-                // We only need to make note of the index for the first
-                // space in a line that comes AFTER the first period in a line.
+                // We only need to make note of the index for the first space in a line that comes AFTER the first period in a line.
                 ' ' if space.is_none() && period.is_some() => {
                     space = Some(i);
                 }
@@ -263,8 +262,7 @@ impl Section {
                 '.' if period.is_none() => {
                     period = Some(i);
                 }
-                // We need to use the last colon on a line as a delimiter.
-                // Therefore, update the colon index each time we see one.
+                // We need to use the last colon on a line as a delimiter. Therefore, update the colon index each time we see one.
                 ':' => {
                     colon = Some(i);
                 }
@@ -278,50 +276,15 @@ impl Section {
         let mut description: Option<String> = None;
 
         if let Some(period_index) = period {
-            // Mnemonic is required! Everything from start of line until first period in a line is mnemonic.
             let raw_mnemonic = raw[..period_index].trim().to_string();
-            if raw_mnemonic.is_empty() {
-                return Err(ParseError::MissingRequiredKey {
-                    key: "mnemonic".to_string(),
-                    line_number,
-                    line: raw.to_string(),
-                });
-            }
-            let invalid_mnemonic_chars = str_contains(&raw_mnemonic, &['.', ':', ' ']);
-            if !invalid_mnemonic_chars.is_empty() {
-                return Err(ParseError::DelimetedValueContainsInvalidChars {
-                    key: "mnemonic".to_string(),
-                    line_number,
-                    invalid_chars: invalid_mnemonic_chars,
-                    line: raw.to_string(),
-                });
-            }
-
+            Self::validate_mnemonic(&raw_mnemonic, raw, line_number)?;
             mnemonic = Some(raw_mnemonic);
 
             if let Some(space_index) = space
                 && let Some(colon_index) = colon
             {
-                // If there is a space between dot and unit, it is invalid.
                 let raw_unit = raw[period_index..space_index].trim_start_matches('.').to_string();
-                if raw_unit.starts_with(" ") {
-                    return Err(ParseError::DelimetedValueContainsInvalidChars {
-                        key: "units".to_string(),
-                        line_number,
-                        invalid_chars: Vec::from([' ']),
-                        line: raw.to_string(),
-                    });
-                }
-                let invalid_unit_chars = str_contains(&raw_unit, &[' ', ':']);
-                if !invalid_unit_chars.is_empty() {
-                    return Err(ParseError::DelimetedValueContainsInvalidChars {
-                        key: "units".to_string(),
-                        line_number,
-                        invalid_chars: invalid_unit_chars,
-                        line: raw.to_string(),
-                    });
-                }
-
+                Self::validate_unit(&raw_unit, raw, line_number)?;
                 unit = Some(raw_unit);
 
                 if space_index > colon_index {
@@ -342,114 +305,57 @@ impl Section {
         }
 
         self.entries.push(SectionEntry::Delimited(DelimitedEntry {
-            mnemonic: mnemonic.expect("verified some"),
-            unit: unit.filter(|u| !u.is_empty()),
             value,
+            unit: unit.filter(|u| !u.is_empty()),
             description: description.filter(|d| !d.is_empty()),
+            mnemonic: mnemonic.ok_or(ParseError::MissingRequiredKey {
+                key: "mnemonic".to_string(),
+                line_number,
+                line: raw.to_string(),
+            })?,
         }));
 
         Ok(())
     }
 
-    pub fn parse_line_old(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
-        if self.header.kind == SectionKind::AsciiLogData {
-            // If we are missing headers here it means we haven't parsed the Curve section yet.
-            // Since ASCII section has to be the last section (per CWLS v2.0) it means we have
-            // and invalid LAS file.
-            let headers = self
-                .ascii_headers
-                .as_ref()
-                .ok_or(ParseError::AsciiLogDataSectionNotLast { line_number })?;
-
-            let values: Vec<f64> = raw
-                .split_whitespace()
-                .map(|s| {
-                    s.parse::<f64>().map_err(|_| ParseError::InvalidAsciiValue {
-                        line_number,
-                        raw_value: s.to_string(),
-                    })
-                })
-                .collect::<Result<_, _>>()?;
-
-            if values.len() != headers.len() {
-                return Err(ParseError::AsciiColumnsMismatch {
-                    line_number,
-                    num_cols_from_curve_section: headers.len(),
-                    num_cols_in_ascii_section: values.len(),
-                });
-            }
-
-            self.ascii_rows.push(values);
-            return Ok(());
-        }
-
-        if self.header.kind == SectionKind::Other {
-            self.entries.push(SectionEntry::Raw(raw.trim().to_string()));
-            return Ok(());
-        }
-
-        // Split at the *last* colon to isolate description
-        let (before_colon, description) = raw.rsplit_once(':').ok_or_else(|| ParseError::MissingDelimiter {
-            delimiter: "last colon (':') on line".to_string(),
-            line_number,
-            line: raw.to_string(),
-        })?;
-
-        let description = Some(description.trim().to_string());
-
-        // Find the position of the '.' in the left-hand part
-        let dot_index = before_colon.find('.').ok_or_else(|| ParseError::MissingDelimiter {
-            delimiter: "first dot ('.') on line".to_string(),
-            line_number,
-            line: raw.to_string(),
-        })?;
-
-        // Everything before '.' is mnemonic (trim it)
-        let mnemonic = before_colon[..dot_index].trim().to_string();
-
-        // After the '.' is unit (no spaces allowed until value starts) up until first space.
-        // From first space until last colon is data (aka value).
-        // This string will contain both the unit and data.
-        let unit_and_data = &before_colon[dot_index + 1..];
-
-        if unit_and_data.find(' ').is_none() {
-            return Err(ParseError::MissingDelimiter {
-                delimiter: "first space following first dot on line".to_string(),
+    fn validate_mnemonic(raw_mnemonic: &str, raw: &str, line_number: usize) -> Result<(), ParseError> {
+        if raw_mnemonic.is_empty() {
+            return Err(ParseError::MissingRequiredKey {
+                key: "mnemonic".to_string(),
                 line_number,
                 line: raw.to_string(),
             });
         }
-
-        if !unit_and_data.ends_with(char::is_whitespace) {
-            return Err(ParseError::MissingDelimiter {
-                delimiter: "space before last colon on line".to_string(),
+        let invalid_mnemonic_chars = str_contains(raw_mnemonic, &['.', ':', ' ']);
+        if !invalid_mnemonic_chars.is_empty() {
+            return Err(ParseError::DelimetedValueContainsInvalidChars {
+                key: "mnemonic".to_string(),
                 line_number,
+                invalid_chars: invalid_mnemonic_chars,
                 line: raw.to_string(),
             });
         }
+        Ok(())
+    }
 
-        let (unit, data) = if unit_and_data.is_empty() {
-            (None, "") // No unit and no data (aka value) 
-        } else if unit_and_data.starts_with(char::is_whitespace) {
-            (None, unit_and_data.trim()) // Space immediately after the dot -> no unit
-        } else {
-            // Possibly unit followed by value
-            match unit_and_data.split_once(char::is_whitespace) {
-                // Both unit and data.
-                Some((u, rest)) => (Some(u.trim().to_string()), rest.trim()),
-                // No data but unit.
-                None => (Some(unit_and_data.trim().to_string()), ""),
-            }
-        };
-
-        let entry = SectionEntry::Delimited(DelimitedEntry {
-            mnemonic,
-            unit,
-            description,
-            value: LasValue::parse(data),
-        });
-
-        self.entries.push(entry);
+    fn validate_unit(raw_unit: &str, raw: &str, line_number: usize) -> Result<(), ParseError> {
+        if raw_unit.starts_with(" ") {
+            return Err(ParseError::DelimetedValueContainsInvalidChars {
+                key: "units".to_string(),
+                line_number,
+                invalid_chars: Vec::from([' ']),
+                line: raw.to_string(),
+            });
+        }
+        let invalid_unit_chars = str_contains(raw_unit, &[' ', ':']);
+        if !invalid_unit_chars.is_empty() {
+            return Err(ParseError::DelimetedValueContainsInvalidChars {
+                key: "units".to_string(),
+                line_number,
+                invalid_chars: invalid_unit_chars,
+                line: raw.to_string(),
+            });
+        }
         Ok(())
     }
 }
