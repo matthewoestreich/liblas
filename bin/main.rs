@@ -1,5 +1,5 @@
 use clap::Parser;
-use liblas::*;
+use liblas::LasFile;
 use std::{
     fs::{OpenOptions, create_dir_all},
     io::Write,
@@ -45,13 +45,12 @@ fn main() {
         exit(1);
     }
 
-    let las = LasFile::parse(args.las.clone().into()).unwrap_or_else(|e| {
-        println!("Error parsing .las file : {e}");
+    let mut las = LasFile::parse(args.las.as_str()).unwrap_or_else(|e| {
+        println!("Error parsing las file! : {e:?}");
         exit(1);
     });
-
     let las_json = las.to_json_str().unwrap_or_else(|e| {
-        println!("Error converting .las file to .json : {e}");
+        println!("Error converting .las file to .json : {e:?}");
         exit(1);
     });
 
@@ -67,9 +66,9 @@ fn main() {
     }
 
     let mut file = file_options.open(&args.out).unwrap_or_else(|e| {
-    println!("Error creating or opening '--out' file : {e}\nYou may need to use the '--force' switch to:\n - Create non-existent directory (or directories) within '--out' path\n - Overwrite existing .json file specified in '--out' path");
-    exit(1);
-  });
+        println!("Error creating or opening '--out' file : {e}\nYou may need to use the '--force' switch to:\n - Create non-existent directory (or directories) within '--out' path\n - Overwrite existing .json file specified in '--out' path");
+        exit(1);
+    });
 
     file.write_all(las_json.as_bytes()).unwrap_or_else(|e| {
         println!("Error writing to '--out' file : {e}");
