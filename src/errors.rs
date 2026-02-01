@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::parser::SectionKind;
+use crate::parser::{LasValue, SectionKind};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -8,8 +8,13 @@ pub enum ParseError {
     MissingSection {
         section: SectionKind,
     },
+    MissingCurveSectionOrAsciiLogsNotLastSectioon,
     MissingMultipleSections {
         missing_sections: Vec<SectionKind>,
+    },
+    UnexpectedSection {
+        expected: SectionKind,
+        got: SectionKind,
     },
     MissingRequiredKey {
         key: String,
@@ -20,6 +25,17 @@ pub enum ParseError {
         delimiter: String,
         line_number: usize,
         line: String,
+    },
+    SectionMissingRequiredData {
+        section: SectionKind,
+        one_of: Vec<String>,
+    },
+    InvalidWellValue {
+        mnemonic: String,
+        value: Option<LasValue>,
+    },
+    WellDataMissingRequiredValueForMnemonic {
+        mnemonic: String,
     },
     DelimetedValueContainsInvalidChars {
         key: String,

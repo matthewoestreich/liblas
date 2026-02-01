@@ -1,4 +1,6 @@
-use crate::{LasFile, errors::ParseError, tokenizer::LasToken};
+use serde::{Deserialize, Serialize};
+
+use crate::{ParsedFile, errors::ParseError, tokenizer::LasToken};
 use std::{
     collections::{HashMap, hash_map::Entry},
     iter::Peekable,
@@ -42,8 +44,8 @@ where
         }
     }
 
-    pub fn parse(&mut self) -> Result<LasFile, ParseError> {
-        let mut file = LasFile { sections: vec![] };
+    pub fn parse(&mut self) -> Result<ParsedFile, ParseError> {
+        let mut file = ParsedFile { sections: vec![] };
 
         // A token is equivalent to a line within the original las file.
         while let Some(token) = self.next_token()? {
@@ -127,16 +129,14 @@ where
 
     fn set_ascii_headers_from_curve_section(
         &mut self,
-        file: &LasFile,
+        file: &ParsedFile,
         section: &mut Section,
     ) -> Result<(), ParseError> {
         let curve_section = file
             .sections
             .iter()
             .find(|s| s.header.kind == SectionKind::Curve)
-            .ok_or(ParseError::MissingSection {
-                section: SectionKind::Curve,
-            })?;
+            .ok_or(ParseError::MissingCurveSectionOrAsciiLogsNotLastSectioon)?;
 
         let headers: Vec<String> = curve_section
             .entries
@@ -162,6 +162,7 @@ pub struct Section {
     pub entries: Vec<SectionEntry>,
     pub ascii_headers: Option<Vec<String>>,
     pub ascii_rows: Vec<Vec<f64>>,
+    pub comments: Option<Vec<String>>,
 }
 
 impl Section {
@@ -175,38 +176,8 @@ impl Section {
             entries: vec![],
             ascii_headers: None,
             ascii_rows: vec![],
+            comments: None,
         }
-    }
-
-    fn parse_ascii_log_line(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
-        // If we are missing headers here it means we haven't parsed the Curve section yet.
-        // Since ASCII section has to be the last section (per CWLS v2.0) it means we have
-        // and invalid LAS file.
-        let headers = self
-            .ascii_headers
-            .as_ref()
-            .ok_or(ParseError::AsciiLogDataSectionNotLast { line_number })?;
-
-        let values: Vec<f64> = raw
-            .split_whitespace()
-            .map(|s| {
-                s.parse::<f64>().map_err(|_| ParseError::InvalidAsciiValue {
-                    line_number,
-                    raw_value: s.to_string(),
-                })
-            })
-            .collect::<Result<_, _>>()?;
-
-        if values.len() != headers.len() {
-            return Err(ParseError::AsciiColumnsMismatch {
-                line_number,
-                num_cols_from_curve_section: headers.len(),
-                num_cols_in_ascii_section: values.len(),
-            });
-        }
-
-        self.ascii_rows.push(values);
-        Ok(())
     }
 
     pub fn parse_line(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
@@ -304,7 +275,7 @@ impl Section {
             description = Some(raw[colon_index + 1..raw.len()].trim().to_string());
         }
 
-        self.entries.push(SectionEntry::Delimited(DelimitedEntry {
+        self.entries.push(SectionEntry::Delimited(KeyValueData {
             value,
             unit: unit.filter(|u| !u.is_empty()),
             description: description.filter(|d| !d.is_empty()),
@@ -315,6 +286,37 @@ impl Section {
             })?,
         }));
 
+        Ok(())
+    }
+
+    fn parse_ascii_log_line(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
+        // If we are missing headers here it means we haven't parsed the Curve section yet.
+        // Since ASCII section has to be the last section (per CWLS v2.0) it means we have
+        // and invalid LAS file.
+        let headers = self
+            .ascii_headers
+            .as_ref()
+            .ok_or(ParseError::AsciiLogDataSectionNotLast { line_number })?;
+
+        let values: Vec<f64> = raw
+            .split_whitespace()
+            .map(|s| {
+                s.parse::<f64>().map_err(|_| ParseError::InvalidAsciiValue {
+                    line_number,
+                    raw_value: s.to_string(),
+                })
+            })
+            .collect::<Result<_, _>>()?;
+
+        if values.len() != headers.len() {
+            return Err(ParseError::AsciiColumnsMismatch {
+                line_number,
+                num_cols_from_curve_section: headers.len(),
+                num_cols_in_ascii_section: values.len(),
+            });
+        }
+
+        self.ascii_rows.push(values);
         Ok(())
     }
 
@@ -408,21 +410,21 @@ impl From<&str> for SectionKind {
 
 #[derive(Debug)]
 pub enum SectionEntry {
-    Delimited(DelimitedEntry),
+    Delimited(KeyValueData),
     AsciiRow(Vec<f64>),
     Raw(String),
 }
 
 // The sections "VERSION", "WELL", "CURVE" and "PARAMETER" use line delimiters.
-#[derive(Debug)]
-pub struct DelimitedEntry {
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct KeyValueData {
     pub mnemonic: String,
     pub unit: Option<String>,
     pub value: Option<LasValue>,
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LasValue {
     Int(i64),
     Float(f64),

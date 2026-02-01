@@ -1,11 +1,12 @@
 pub mod errors;
 pub mod parser;
+pub mod sections;
 pub mod tokenizer;
 
 use parser::Section;
 
 #[derive(Debug)]
-pub struct LasFile {
+pub struct ParsedFile {
     pub sections: Vec<Section>,
 }
 
@@ -28,7 +29,7 @@ mod test {
         BufReader::new(file)
     }
 
-    fn parse_las_file(reader: BufReader<File>) -> Result<LasFile, ParseError> {
+    fn parse_las_file(reader: BufReader<File>) -> Result<ParsedFile, ParseError> {
         let las_tokenizer = tokenizer::LasTokenizer::new(reader);
         let mut las_parser = parser::LasParser::new(las_tokenizer);
         las_parser.parse()
@@ -69,7 +70,7 @@ mod test {
     }
 
     // Helper - put at bottom to not take up space
-    fn _print_parsed_las_file(parsed_file: &LasFile) {
+    fn _print_parsed_las_file(parsed_file: &ParsedFile) {
         for section in &parsed_file.sections {
             println!("{:?}", section.header.kind);
             for entry in &section.entries {

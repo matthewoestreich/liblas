@@ -224,7 +224,7 @@ fn main() -> Result<(), LibLasErrorOld> {
         Some(param_info),
     );
 
-    let json = las_file.to_json_str()?;
+    let json = sections.to_json_str()?;
 
     println!("{json}");
 
