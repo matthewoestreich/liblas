@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{ParsedFile, errors::ParseError, tokenizer::LasToken};
+use crate::{errors::ParseError, tokenizer::LasToken};
 use std::{
     collections::{HashMap, hash_map::Entry},
     iter::Peekable,
@@ -13,6 +13,11 @@ const REQUIRED_SECTIONS: [SectionKind; 4] = [
     SectionKind::AsciiLogData,
 ];
 
+#[derive(Debug)]
+pub(crate) struct ParsedFile {
+    pub sections: Vec<Section>,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum ParserState {
     Start,
@@ -21,7 +26,7 @@ enum ParserState {
     End,
 }
 
-pub struct LasParser<I>
+pub(crate) struct LasParser<I>
 where
     I: Iterator<Item = Result<LasToken, std::io::Error>>,
 {
@@ -156,7 +161,8 @@ where
 }
 
 #[derive(Debug)]
-pub struct Section {
+#[allow(dead_code)]
+pub(crate) struct Section {
     pub header: SectionHeader,
     pub line: usize,
     pub entries: Vec<SectionEntry>,
@@ -373,11 +379,13 @@ fn str_contains(str: &str, chars: &[char]) -> Vec<char> {
 }
 
 #[derive(Debug)]
-pub struct SectionHeader {
+#[allow(dead_code)]
+pub(crate) struct SectionHeader {
     pub raw: String, // eg. "Curve Information Section"
     pub kind: SectionKind,
 }
 
+#[allow(dead_code)]
 impl SectionHeader {
     pub fn new(name: String, kind: SectionKind) -> Self {
         Self { raw: name, kind }
@@ -409,7 +417,8 @@ impl From<&str> for SectionKind {
 }
 
 #[derive(Debug)]
-pub enum SectionEntry {
+#[allow(dead_code)]
+pub(crate) enum SectionEntry {
     Delimited(KeyValueData),
     AsciiRow(Vec<f64>),
     Raw(String),
@@ -425,6 +434,7 @@ pub struct KeyValueData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum LasValue {
     Int(i64),
     Float(f64),

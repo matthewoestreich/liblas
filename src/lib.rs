@@ -1,20 +1,82 @@
-pub mod errors;
-pub mod parser;
-pub mod sections;
-pub mod tokenizer;
+mod errors;
+mod parser;
+mod sections;
+mod tokenizer;
 
-use parser::Section;
+pub use errors::*;
+pub use parser::*;
+pub use sections::*;
+pub use tokenizer::*;
 
-#[derive(Debug)]
-pub struct ParsedFile {
-    pub sections: Vec<Section>,
+use serde::{self, Deserialize, Serialize};
+use std::{fs::File, io::BufReader};
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct LasFile {
+    #[serde(rename = "VersionInformation")]
+    pub version_information: VersionInformation,
+    #[serde(rename = "WellInformation")]
+    pub well_information: WellInformation,
+    #[serde(rename = "AsciiLogData")]
+    pub ascii_log_data: AsciiLogData,
+    #[serde(rename = "CurveInformation")]
+    pub curve_information: CurveInformation,
+    #[serde(rename = "OtherInformation")]
+    pub other_information: Option<OtherInformation>,
+    #[serde(rename = "ParameterInformation")]
+    pub parameter_information: Option<ParameterInformation>,
+}
+
+impl LasFile {
+    pub fn to_json_str(&mut self) -> Result<String, ParseError> {
+        serde_json::to_string_pretty(self).map_err(|_| ParseError::ConvertingTo {
+            format: "json".to_string(),
+        })
+    }
+
+    pub fn parse(las_file_path: &str) -> Result<Self, ParseError> {
+        let reader = BufReader::new(File::open(las_file_path)?);
+        let mut parser = LasParser::new(LasTokenizer::new(reader));
+        LasFile::try_from(parser.parse()?)
+    }
+}
+
+impl TryFrom<ParsedFile> for LasFile {
+    type Error = ParseError;
+
+    fn try_from(file: ParsedFile) -> Result<Self, Self::Error> {
+        let mut las_file = LasFile::default();
+
+        for section in file.sections {
+            match section.header.kind {
+                SectionKind::Version => {
+                    las_file.version_information = VersionInformation::try_from(section)?;
+                }
+                SectionKind::Well => {
+                    las_file.well_information = WellInformation::try_from(section)?;
+                }
+                SectionKind::Curve => {
+                    las_file.curve_information = CurveInformation::try_from(section)?;
+                }
+                SectionKind::Parameter => {
+                    las_file.parameter_information = Some(ParameterInformation::try_from(section)?);
+                }
+                SectionKind::Other => {
+                    las_file.other_information = Some(OtherInformation::try_from(section)?);
+                }
+                SectionKind::AsciiLogData => {
+                    las_file.ascii_log_data = AsciiLogData::try_from(section)?;
+                }
+            }
+        }
+
+        Ok(las_file)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use std::{fs::File, io::BufReader, path::PathBuf};
-
-    use crate::errors::ParseError;
 
     use super::*;
 
@@ -33,6 +95,14 @@ mod test {
         let las_tokenizer = tokenizer::LasTokenizer::new(reader);
         let mut las_parser = parser::LasParser::new(las_tokenizer);
         las_parser.parse()
+    }
+
+    #[test]
+    fn test_parsed_file_to_las_file() {
+        let file_path = "las_files/_good_sample_1.las";
+        let _parsed = parse_las_file(open_file(file_path)).unwrap();
+        let las_file = LasFile::try_from(_parsed).unwrap();
+        println!("{:?}", las_file.well_information);
     }
 
     #[test]

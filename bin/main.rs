@@ -1,5 +1,5 @@
 use clap::Parser;
-use liblas::*;
+use liblas::LasFile;
 use std::{
     fs::{OpenOptions, create_dir_all},
     io::Write,
@@ -44,12 +44,13 @@ fn main() {
         println!("Error : '--out' path '{}' must be to a .json file!", args.out);
         exit(1);
     }
-    let las = LasFileOld::parse(args.las.clone().into()).unwrap_or_else(|e| {
-        println!("Error parsing .las file : {e}");
+
+    let mut las = LasFile::parse(args.las.as_str()).unwrap_or_else(|e| {
+        println!("Error parsing las file! : {e:?}");
         exit(1);
     });
     let las_json = las.to_json_str().unwrap_or_else(|e| {
-        println!("Error converting .las file to .json : {e}");
+        println!("Error converting .las file to .json : {e:?}");
         exit(1);
     });
 

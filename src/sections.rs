@@ -9,22 +9,6 @@ fn any_present<T>(items: &[&Option<T>]) -> bool {
     items.iter().any(|o| o.is_some())
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct LasFile {
-    #[serde(rename = "VersionInformation")]
-    pub version_information: VersionInformation,
-    #[serde(rename = "WellInformation")]
-    pub well_information: WellInformation,
-    #[serde(rename = "AsciiLogData")]
-    pub ascii_log_data: AsciiLogData,
-    #[serde(rename = "CurveInformation")]
-    pub curve_information: CurveInformation,
-    #[serde(rename = "OtherInformation")]
-    pub other_information: Option<OtherInformation>,
-    #[serde(rename = "ParameterInformation")]
-    pub parameter_information: Option<ParameterInformation>,
-}
-
 // --------------------------------------------------------------------------------
 // ------------------ VERSION INFORMATION -----------------------------------------
 // --------------------------------------------------------------------------------
@@ -50,21 +34,31 @@ impl TryFrom<Section> for VersionInformation {
             });
         }
 
-        //if !section.entries.iter().any(|e| {}) {}
-
         let mut version = VersionInformation::default();
+        let mut has_vers = false;
+        let mut has_wrap = false;
 
         for entry in section.entries {
             if let SectionEntry::Delimited(kv) = entry {
-                let mnemonic = kv.mnemonic.to_lowercase();
-                if mnemonic == "vers" {
-                    version.version = kv;
-                } else if mnemonic == "wrap" {
-                    version.wrap = kv;
-                } else {
-                    version.additional.push(kv);
-                }
+                match kv.mnemonic.to_lowercase().as_str() {
+                    "vers" => {
+                        version.version = kv;
+                        has_vers = true;
+                    }
+                    "wrap" => {
+                        version.wrap = kv;
+                        has_wrap = true;
+                    }
+                    _ => version.additional.push(kv),
+                };
             }
+        }
+
+        if !has_vers || !has_wrap {
+            return Err(ParseError::SectionMissingRequiredData {
+                section: SectionKind::Version,
+                one_of: vec!["VERS".to_string(), "WRAP".to_string()],
+            });
         }
 
         version.comments = section.comments;
@@ -79,7 +73,31 @@ impl TryFrom<Section> for VersionInformation {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct OtherInformation {
     pub text: String,
-    pub comments: Vec<String>,
+    pub comments: Option<Vec<String>>,
+}
+
+impl TryFrom<Section> for OtherInformation {
+    type Error = ParseError;
+
+    fn try_from(section: Section) -> Result<Self, Self::Error> {
+        if section.header.kind != SectionKind::Other {
+            return Err(ParseError::UnexpectedSection {
+                expected: SectionKind::Other,
+                got: section.header.kind,
+            });
+        }
+
+        let mut other = OtherInformation::default();
+
+        for entry in section.entries {
+            if let SectionEntry::Raw(s) = entry {
+                other.text += format!("{s}\n").as_str();
+            }
+        }
+
+        other.comments = section.comments;
+        Ok(other)
+    }
 }
 
 // --------------------------------------------------------------------------------
@@ -89,8 +107,37 @@ pub struct OtherInformation {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AsciiLogData {
     pub headers: Vec<String>,
-    pub rows: Vec<Vec<String>>,
-    pub comments: Vec<String>,
+    pub rows: Vec<Vec<f64>>,
+    pub comments: Option<Vec<String>>,
+}
+
+impl TryFrom<Section> for AsciiLogData {
+    type Error = ParseError;
+
+    fn try_from(section: Section) -> Result<Self, Self::Error> {
+        if section.header.kind != SectionKind::AsciiLogData {
+            return Err(ParseError::UnexpectedSection {
+                expected: SectionKind::AsciiLogData,
+                got: section.header.kind,
+            });
+        }
+        if section.ascii_headers.is_none() {
+            return Err(ParseError::SectionMissingRequiredData {
+                section: SectionKind::AsciiLogData,
+                one_of: vec!["headers".to_string()],
+            });
+        }
+
+        let mut ascii_logs = AsciiLogData::default();
+
+        if let Some(headers) = section.ascii_headers {
+            ascii_logs.headers = headers;
+            ascii_logs.rows = section.ascii_rows;
+        }
+
+        ascii_logs.comments = section.comments;
+        Ok(ascii_logs)
+    }
 }
 
 // --------------------------------------------------------------------------------
@@ -100,7 +147,31 @@ pub struct AsciiLogData {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CurveInformation {
     pub curves: Vec<KeyValueData>,
-    pub comments: Vec<String>,
+    pub comments: Option<Vec<String>>,
+}
+
+impl TryFrom<Section> for CurveInformation {
+    type Error = ParseError;
+
+    fn try_from(section: Section) -> Result<Self, Self::Error> {
+        if section.header.kind != SectionKind::Curve {
+            return Err(ParseError::UnexpectedSection {
+                expected: SectionKind::Curve,
+                got: section.header.kind,
+            });
+        }
+
+        let mut curve = CurveInformation::default();
+
+        for entry in section.entries {
+            if let SectionEntry::Delimited(kv) = entry {
+                curve.curves.push(kv);
+            }
+        }
+
+        curve.comments = section.comments;
+        Ok(curve)
+    }
 }
 
 // --------------------------------------------------------------------------------
@@ -110,7 +181,31 @@ pub struct CurveInformation {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ParameterInformation {
     pub parameters: Vec<KeyValueData>,
-    pub comments: Vec<String>,
+    pub comments: Option<Vec<String>>,
+}
+
+impl TryFrom<Section> for ParameterInformation {
+    type Error = ParseError;
+
+    fn try_from(section: Section) -> Result<Self, Self::Error> {
+        if section.header.kind != SectionKind::Parameter {
+            return Err(ParseError::UnexpectedSection {
+                expected: SectionKind::Parameter,
+                got: section.header.kind,
+            });
+        }
+
+        let mut parameter = ParameterInformation::default();
+
+        for entry in section.entries {
+            if let SectionEntry::Delimited(kv) = entry {
+                parameter.parameters.push(kv);
+            }
+        }
+
+        parameter.comments = section.comments;
+        Ok(parameter)
+    }
 }
 
 // --------------------------------------------------------------------------------

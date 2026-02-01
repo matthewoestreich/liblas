@@ -63,6 +63,9 @@ pub enum ParseError {
         num_cols_from_curve_section: usize,
         num_cols_in_ascii_section: usize,
     },
+    ConvertingTo {
+        format: String,
+    },
 }
 
 impl From<io::Error> for ParseError {
