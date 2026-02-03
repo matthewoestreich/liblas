@@ -73,6 +73,36 @@ impl TryFrom<ParsedFile> for LasFile {
             }
         }
 
+        // The first data line in the Curve section must be one of "DEPT", "DEPTH", "TIME" or "INDEX".
+        let first_curve = &las_file.curve_information.curves[0];
+        let allowed_first_curves = [
+            "DEPT".to_string(),
+            "DEPTH".to_string(),
+            "TIME".to_string(),
+            "INDEX".to_string(),
+        ];
+        if !allowed_first_curves.contains(&first_curve.mnemonic.to_uppercase().to_string()) {
+            return Err(ParseError::DisallowedFirstCurve {
+                got: first_curve.mnemonic.clone(),
+                expected_one_of: Vec::from(allowed_first_curves),
+            });
+        }
+
+        // The channels (data-lines) in the curve section must be present in the data set (ascii_log_data).
+        // There are some "official" las file examples that don't have the curve mnemonic match
+        // exactly to the column header, so we play it loose and just ensure the lengths match.
+        //
+        // Example of las file where curve mnemonic doesn't match data header.. (from https://www.minnelusa.com/sampledata.php)
+        // The curve mnemonic is "RESD", but the data header is "Resist." (which is the DEEP RESISTIVITY curve/data)
+        if las_file.ascii_log_data.headers.len() != las_file.curve_information.curves.len() {
+            return Err(ParseError::CurvesAndAsciiDataColumnsMismatch {
+                num_curves: las_file.curve_information.curves.len(),
+                num_data_cols: las_file.ascii_log_data.headers.len(),
+                curves_line_number: las_file.curve_information.line_number,
+                ascii_data_line_number: las_file.ascii_log_data.line_number,
+            });
+        }
+
         Ok(las_file)
     }
 }

@@ -60,11 +60,24 @@ pub enum ParseError {
     },
     AsciiColumnsMismatch {
         line_number: usize,
-        num_cols_from_curve_section: usize,
-        num_cols_in_ascii_section: usize,
+        num_cols_in_headers: usize,
+        num_cols_in_row: usize,
+    },
+    AsciiDataContainsEmptyLine {
+        line_number: usize,
+    },
+    CurvesAndAsciiDataColumnsMismatch {
+        num_curves: usize,
+        num_data_cols: usize,
+        curves_line_number: usize,
+        ascii_data_line_number: usize,
     },
     ConvertingTo {
         format: String,
+    },
+    DisallowedFirstCurve {
+        got: String,
+        expected_one_of: Vec<String>,
     },
 }
 

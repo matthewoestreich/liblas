@@ -5,7 +5,7 @@ use crate::{
     parser::{KeyValueData, LasValue, Section, SectionEntry, SectionKind},
 };
 
-fn any_present<T>(items: &[&Option<T>]) -> bool {
+pub(crate) fn any_present<T>(items: &[&Option<T>]) -> bool {
     items.iter().any(|o| o.is_some())
 }
 
@@ -21,6 +21,7 @@ pub struct VersionInformation {
     pub wrap: KeyValueData,
     pub additional: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
+    pub(crate) line_number: usize,
 }
 
 impl TryFrom<Section> for VersionInformation {
@@ -62,6 +63,7 @@ impl TryFrom<Section> for VersionInformation {
         }
 
         version.comments = section.comments;
+        version.line_number = section.line;
         Ok(version)
     }
 }
@@ -74,6 +76,7 @@ impl TryFrom<Section> for VersionInformation {
 pub struct OtherInformation {
     pub text: String,
     pub comments: Option<Vec<String>>,
+    pub(crate) line_number: usize,
 }
 
 impl TryFrom<Section> for OtherInformation {
@@ -96,6 +99,7 @@ impl TryFrom<Section> for OtherInformation {
         }
 
         other.comments = section.comments;
+        other.line_number = section.line;
         Ok(other)
     }
 }
@@ -109,6 +113,7 @@ pub struct AsciiLogData {
     pub headers: Vec<String>,
     pub rows: Vec<Vec<f64>>,
     pub comments: Option<Vec<String>>,
+    pub(crate) line_number: usize,
 }
 
 impl TryFrom<Section> for AsciiLogData {
@@ -136,6 +141,7 @@ impl TryFrom<Section> for AsciiLogData {
         }
 
         ascii_logs.comments = section.comments;
+        ascii_logs.line_number = section.line;
         Ok(ascii_logs)
     }
 }
@@ -148,6 +154,7 @@ impl TryFrom<Section> for AsciiLogData {
 pub struct CurveInformation {
     pub curves: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
+    pub(crate) line_number: usize,
 }
 
 impl TryFrom<Section> for CurveInformation {
@@ -170,6 +177,7 @@ impl TryFrom<Section> for CurveInformation {
         }
 
         curve.comments = section.comments;
+        curve.line_number = section.line;
         Ok(curve)
     }
 }
@@ -182,6 +190,7 @@ impl TryFrom<Section> for CurveInformation {
 pub struct ParameterInformation {
     pub parameters: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
+    pub(crate) line_number: usize,
 }
 
 impl TryFrom<Section> for ParameterInformation {
@@ -204,6 +213,7 @@ impl TryFrom<Section> for ParameterInformation {
         }
 
         parameter.comments = section.comments;
+        parameter.line_number = section.line;
         Ok(parameter)
     }
 }
@@ -255,29 +265,31 @@ pub struct WellInformation {
 
     pub additional: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
+    pub(crate) line_number: usize,
 }
 
 impl WellInformation {
     pub fn validate(&self) -> Result<(), ParseError> {
-        // ---- REQUIRED ----
+        // These data lines are required.
         self.require_value(&self.strt, "STRT")?;
         self.require_value(&self.stop, "STOP")?;
         self.require_value(&self.step, "STEP")?;
         self.require_value(&self.null, "NULL")?;
 
-        // ---- STRT / STOP / STEP must be numeric ----
+        // These must be numeric values.
         self.require_numeric(&self.strt, "STRT")?;
         self.require_numeric(&self.stop, "STOP")?;
         self.require_numeric(&self.step, "STEP")?;
 
-        // ---- STEP consistency ----
-        if let Some(LasValue::Float(step)) = &self.step.value
-            && *step == 0.0
-        {
-            // allowed but special case
-        }
+        // TODO : Step consistency
+        //
+        //if let Some(LasValue::Float(step)) = &self.step.value
+        //    && *step == 0.0
+        //{
+        // allowed but special case
+        //}
 
-        // ---- LOCATION: one-of ----
+        // "Location" must contain one of "PROV", "CNTY", "STAT" or "CTRY".
         if !any_present(&[&self.prov, &self.cnty, &self.stat, &self.ctry]) {
             return Err(ParseError::SectionMissingRequiredData {
                 section: SectionKind::Well,
@@ -290,7 +302,7 @@ impl WellInformation {
             });
         }
 
-        // ---- IDENTITY: one-of ----
+        // "Identity" must contain one of "UWI" or "API".
         if !any_present(&[&self.uwi, &self.api]) {
             return Err(ParseError::SectionMissingRequiredData {
                 section: SectionKind::Well,
@@ -365,6 +377,7 @@ impl TryFrom<Section> for WellInformation {
         }
 
         well.comments = section.comments;
+        well.line_number = section.line;
 
         well.validate()?;
         Ok(well)

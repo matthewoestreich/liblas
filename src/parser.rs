@@ -55,6 +55,16 @@ where
         // A token is equivalent to a line within the original las file.
         while let Some(token) = self.next_token()? {
             match token {
+                // We found a blank line
+                LasToken::Blank { line_number } => {
+                    // Blank lines not allowed in ASCII data section.
+                    if let Some(section) = self.current_section.as_ref()
+                        && section.header.kind == SectionKind::AsciiLogData
+                    {
+                        return Err(ParseError::AsciiDataContainsEmptyLine { line_number });
+                    }
+                }
+
                 // We are parsing a data line within a section.
                 LasToken::DataLine { raw, line_number } => {
                     if let Some(section) = self.current_section.as_mut() {
@@ -317,8 +327,8 @@ impl Section {
         if values.len() != headers.len() {
             return Err(ParseError::AsciiColumnsMismatch {
                 line_number,
-                num_cols_from_curve_section: headers.len(),
-                num_cols_in_ascii_section: values.len(),
+                num_cols_in_headers: headers.len(),
+                num_cols_in_row: values.len(),
             });
         }
 
