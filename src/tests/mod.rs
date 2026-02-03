@@ -1,0 +1,63 @@
+mod helpers;
+
+use super::*;
+use helpers::*;
+use plotters::prelude::*;
+
+const _MISSING_VERSION_SECTION: &str = "las_files/missing_version_section.las";
+const _DUPLICATE_WELL_SECTIONS: &str = "las_files/duplicate_well_sections.las";
+const _MISSING_REQUIRED_WELL_DATA: &str = "las_files/missing_required_well_info.las";
+const _NO_FIRST_SPACE_AFTER_FIRST_DOT: &str = "las_files/no_first_space_after_first_dot.las";
+
+#[test]
+fn test_parsed_file_to_las_file() {
+    let file_path = "las_files/_good_sample_1.las";
+    let _parsed = parse_las_file(open_file(file_path)).unwrap();
+    let las_file = LasFile::try_from(_parsed).unwrap();
+    println!("{:?}", las_file.well_information);
+}
+
+#[test]
+fn test_good_sample() {
+    let file_path = "las_files/_good_sample_1.las";
+    let _parsed = parse_las_file(open_file(file_path)).unwrap();
+}
+
+#[test]
+#[should_panic]
+fn test_ascii_section_not_last() {
+    let file_path = "las_files/ascii_not_last.las";
+    _ = parse_las_file(open_file(file_path)).unwrap();
+}
+
+#[test]
+fn test_missing_mnemonic() {
+    let file_path = "las_files/missing_mnemonic.las";
+    match parse_las_file(open_file(file_path)) {
+        Err(ParseError::MissingRequiredKey { key, .. }) => {
+            let expected_key = "mnemonic";
+            if key != expected_key {
+                panic!("Got correct error but incorrect key! Expected '{expected_key}' got '{key}'");
+            }
+        }
+        Ok(_) => panic!("Expected MissingRequiredKey error but got Ok"),
+        Err(e) => panic!("Expeccted error MissingRequiredKey but got {e:?}"),
+    }
+}
+
+#[test]
+fn test_no_space_before_last_colon() {
+    let file_path = "las_files/no_space_before_last_colon.las";
+    _ = parse_las_file(open_file(file_path)).unwrap();
+}
+
+#[test]
+#[ignore = "for generating plots"]
+fn test_plotting() {
+    let file_name = "4771-36-SESE.las";
+    let file_path = &format!("las_files/{file_name}");
+    let output_plot_png = &format!("./plots/{file_name}.png");
+    let _parsed = parse_las_file(open_file(file_path)).unwrap();
+    let las_file = LasFile::try_from(_parsed).unwrap();
+    plot_las(&las_file, output_plot_png).expect("plot");
+}
