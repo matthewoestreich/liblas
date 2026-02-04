@@ -83,6 +83,7 @@ impl fmt::Display for WellInformation {
     }
 }
 
+// TODO : maybe move this validation into the parser?
 impl WellInformation {
     pub fn validate(&self) -> Result<(), ParseError> {
         // These data lines are required.

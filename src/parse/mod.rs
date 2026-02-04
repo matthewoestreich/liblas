@@ -5,7 +5,7 @@ pub(crate) use parser::*;
 pub(crate) use section::*;
 
 #[derive(Debug)]
-pub(crate) struct ParsedFile {
+pub(crate) struct ParsedLasFile {
     pub sections: Vec<Section>,
 }
 

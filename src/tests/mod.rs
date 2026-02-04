@@ -24,6 +24,13 @@ fn test_good_sample() {
 
 #[test]
 #[should_panic]
+fn test_num_curves_not_equal_num_ascii_logs() {
+    let file_path = "las_files/num_curves_not_equal_num_ascii_logs.las";
+    let _parsed = parse_las_file(open_file(file_path)).unwrap();
+}
+
+#[test]
+#[should_panic]
 fn test_ascii_section_not_last() {
     let file_path = "las_files/ascii_not_last.las";
     _ = parse_las_file(open_file(file_path)).unwrap();

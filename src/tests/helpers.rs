@@ -9,7 +9,7 @@ pub(crate) fn open_file(file_path: &str) -> BufReader<File> {
     BufReader::new(file)
 }
 
-pub(crate) fn parse_las_file(reader: BufReader<File>) -> Result<ParsedFile, ParseError> {
+pub(crate) fn parse_las_file(reader: BufReader<File>) -> Result<ParsedLasFile, ParseError> {
     let las_tokenizer = tokenizer::LasTokenizer::new(reader);
     let mut las_parser = parse::LasParser::new(las_tokenizer);
     las_parser.parse()
@@ -176,7 +176,7 @@ pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Re
 }
 
 // Helper - put at bottom to not take up space
-pub(crate) fn _print_parsed_las_file(parsed_file: &ParsedFile) {
+pub(crate) fn _print_parsed_las_file(parsed_file: &ParsedLasFile) {
     for section in &parsed_file.sections {
         println!("{:?}", section.header.kind);
         if let Some(comments) = section.comments.as_ref() {
