@@ -407,7 +407,7 @@ let yaml_string = parsed_file.to_yaml_str().expect("yaml");
 ```
 
 <details>
-  <summary>Click to show LAS as YAML</summary>
+  <summary><h4>Click to show LAS as YAML</h4></summary>
 
 ```yaml
 VersionInformation:
