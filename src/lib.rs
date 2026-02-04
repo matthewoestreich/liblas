@@ -1,19 +1,38 @@
+pub mod sections;
+pub use errors::*;
+
 #[cfg(test)]
 mod tests;
 
 mod errors;
-mod parser;
-mod sections;
-mod tokenizer;
 
-pub use errors::*;
-pub use parser::*;
-pub use sections::*;
+pub(crate) mod parse;
+pub(crate) mod tokenizer;
 
-pub(crate) use tokenizer::*;
-
+use crate::{parse::*, sections::*, tokenizer::*};
 use serde::{self, Deserialize, Serialize};
 use std::{fmt, fs::File, io::BufReader};
+
+pub(crate) fn any_present<T>(items: &[&Option<T>]) -> bool {
+    items.iter().any(|o| o.is_some())
+}
+
+pub(crate) fn write_kv_opt(f: &mut fmt::Formatter<'_>, kv: &Option<KeyValueData>) -> fmt::Result {
+    if let Some(v) = kv {
+        writeln!(f, "{v}")?;
+    }
+    Ok(())
+}
+
+pub(crate) fn write_comments(f: &mut fmt::Formatter<'_>, comments: &Option<Vec<String>>) -> fmt::Result {
+    if let Some(cs) = comments {
+        for c in cs {
+            let fc = format!("# {c}").trim().to_string();
+            writeln!(f, "{fc}")?;
+        }
+    }
+    Ok(())
+}
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct LasFile {

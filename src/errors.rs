@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::parser::{LasValue, SectionKind};
+use crate::parse::{LasValue, SectionKind};
 
 #[derive(Debug)]
 pub enum ParseError {

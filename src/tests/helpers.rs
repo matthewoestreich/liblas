@@ -11,7 +11,7 @@ pub(crate) fn open_file(file_path: &str) -> BufReader<File> {
 
 pub(crate) fn parse_las_file(reader: BufReader<File>) -> Result<ParsedFile, ParseError> {
     let las_tokenizer = tokenizer::LasTokenizer::new(reader);
-    let mut las_parser = parser::LasParser::new(las_tokenizer);
+    let mut las_parser = parse::LasParser::new(las_tokenizer);
     las_parser.parse()
 }
 
