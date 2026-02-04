@@ -185,6 +185,7 @@ impl fmt::Display for AsciiLogData {
             for cell in col.iter() {
                 write!(f, "{cell} ")?;
             }
+            writeln!(f)?;
         }
         Ok(())
     }
