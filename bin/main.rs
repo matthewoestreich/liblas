@@ -1,4 +1,5 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+use core::fmt;
 use liblas::LasFile;
 use std::{
     fs::{OpenOptions, create_dir_all},
@@ -6,6 +7,23 @@ use std::{
     path::PathBuf,
     process::exit,
 };
+
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
+enum ExportType {
+    Json,
+    Yaml,
+    Yml,
+}
+
+impl fmt::Display for ExportType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExportType::Json => write!(f, "JSON"),
+            ExportType::Yaml => write!(f, "YAML"),
+            ExportType::Yml => write!(f, "YML"),
+        }
+    }
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -16,11 +34,14 @@ struct Args {
     las: String,
 
     /// Relative to binary location.
-    /// Output path with file name ending in .json.
+    /// Output path with file name ending in .json, .yml, or .yaml.
     /// Only new files will be automatically created!
     /// If the path contains non-existent directories, you will need to use the '--force' switch.
     #[arg(short, long, required = true)]
     out: String,
+
+    #[arg(short = 't', long, required = true)]
+    out_type: ExportType,
 
     /// Will create directories within '--out' path if they do not exist.
     /// If file already exists we will overwrite it.
@@ -40,8 +61,16 @@ fn main() {
         println!("Error : '--las' path '{}' must be to a .las file!", args.las);
         exit(1);
     }
-    if !args.out.ends_with(".json") {
+
+    if args.out_type == ExportType::Json && !args.out.ends_with(".json") {
         println!("Error : '--out' path '{}' must be to a .json file!", args.out);
+        exit(1);
+    }
+
+    if (args.out_type == ExportType::Yaml || args.out_type == ExportType::Yml)
+        && (!args.out.ends_with(".yaml") && !args.out.ends_with(".yml"))
+    {
+        println!("Error : '--out' path '{}' must be to a .yaml or .yml file!", args.out);
         exit(1);
     }
 
@@ -49,10 +78,20 @@ fn main() {
         println!("Error parsing las file! : {e:?}");
         exit(1);
     });
-    let las_json = las.to_json_str().unwrap_or_else(|e| {
-        println!("Error converting .las file to .json : {e:?}");
-        exit(1);
-    });
+
+    let serialized = match args.out_type {
+        ExportType::Json => las.to_json_str().unwrap_or_else(|e| {
+            println!("Error converting .las file to .json : {e:?}");
+            exit(1);
+        }),
+        ExportType::Yaml | ExportType::Yml => las.to_yaml_str().unwrap_or_else(|e| {
+            println!(
+                "Error converting .las file to .{} : {e:?}",
+                args.out_type.to_string().to_lowercase()
+            );
+            exit(1);
+        }),
+    };
 
     let mut file_options = OpenOptions::new();
     file_options.write(true);
@@ -70,10 +109,10 @@ fn main() {
         exit(1);
     });
 
-    file.write_all(las_json.as_bytes()).unwrap_or_else(|e| {
+    file.write_all(serialized.as_bytes()).unwrap_or_else(|e| {
         println!("Error writing to '--out' file : {e}");
         exit(1);
     });
 
-    println!("Success! Exported JSON file to '{}'", args.out);
+    println!("Success! Exported '{}' file to '{}'", args.out_type, args.out);
 }

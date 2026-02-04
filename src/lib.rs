@@ -38,6 +38,12 @@ impl LasFile {
         })
     }
 
+    pub fn to_yaml_str(&mut self) -> Result<String, ParseError> {
+        serde_yaml_ng::to_string(self).map_err(|_| ParseError::ConvertingTo {
+            format: "yaml".to_string(),
+        })
+    }
+
     pub fn parse(las_file_path: &str) -> Result<Self, ParseError> {
         let reader = BufReader::new(File::open(las_file_path)?);
         let mut parser = LasParser::new(LasTokenizer::new(reader));
