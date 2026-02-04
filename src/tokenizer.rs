@@ -81,6 +81,7 @@ pub enum LasToken {
     },
     Comment {
         text: String,
+        #[allow(dead_code)]
         line_number: usize,
     },
     DataLine {

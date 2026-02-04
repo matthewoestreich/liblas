@@ -45,11 +45,13 @@ pub(crate) fn plot_curves(las: &LasFile) -> Vec<PlotCurve> {
                 .find(|c| c.mnemonic == *mnemonic)
                 .and_then(|c| {
                     if c.unit.is_some() && c.description.is_some() {
-                        return Some(format!(
+                        let s = format!(
                             "{} : {}",
                             c.unit.clone().expect("is_some"),
                             c.description.clone().expect("is_some")
-                        ));
+                        );
+                        let s = s.split_whitespace().collect::<Vec<_>>().join(" ");
+                        return Some(s);
                     }
                     None
                 });
@@ -92,7 +94,7 @@ pub(crate) fn x_range_for_curve(las: &LasFile, col_idx: usize, pad_frac: f64) ->
 }
 
 /// Plot LAS file to PNG
-pub(crate) fn plot_las(las: &LasFile, output: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn _plot_las_old(las: &LasFile, output: &str) -> Result<(), Box<dyn std::error::Error>> {
     let depths = depths(las);
     let curves = plot_curves(las);
 
@@ -129,7 +131,7 @@ pub(crate) fn plot_las(las: &LasFile, output: &str) -> Result<(), Box<dyn std::e
                 format!(
                     "{}{}",
                     curve.mnemonic,
-                    curve.unit.as_deref().map(|u| format!(" ({u})")).unwrap_or_default()
+                    curve.unit.as_deref().map(|u| format!(" ({u})")).unwrap_or_default(),
                 ),
                 ("sans-serif", 16),
             )
@@ -152,10 +154,93 @@ pub(crate) fn plot_las(las: &LasFile, output: &str) -> Result<(), Box<dyn std::e
     Ok(())
 }
 
+pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Result<(), Box<dyn std::error::Error>> {
+    let depths = depths(las);
+    let curves = plot_curves(las);
+
+    if depths.is_empty() || curves.is_empty() {
+        return Ok(());
+    }
+
+    let depth_min = *depths.first().unwrap();
+    let depth_max = *depths.last().unwrap();
+
+    let root = BitMapBackend::new(output, (1920, 1080)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let num_rows = curves.len().div_ceil(curves_per_row);
+
+    // Split vertically into rows
+    let row_areas = root.split_evenly((num_rows, 1));
+
+    let null_value = match las.well_information.null.value {
+        Some(LasValue::Float(v)) => v,
+        Some(LasValue::Int(v)) => v as f64,
+        _ => unreachable!(),
+    };
+
+    for (row_idx, row_area) in row_areas.into_iter().enumerate() {
+        let start = row_idx * curves_per_row;
+        let end = (start + curves_per_row).min(curves.len());
+        let row_curves = &curves[start..end];
+
+        // IMPORTANT: split this row into EXACTLY the number of curves it has
+        let track_areas = row_area.split_evenly((1, row_curves.len()));
+
+        for (area, curve) in track_areas.into_iter().zip(row_curves.iter()) {
+            let x_range = match x_range_for_curve(las, curve.col_idx, 0.05) {
+                Some(r) => r,
+                None => continue,
+            };
+
+            let mut chart = ChartBuilder::on(&area)
+                .margin(10)
+                .set_label_area_size(LabelAreaPosition::Left, 60)
+                .set_label_area_size(LabelAreaPosition::Bottom, 40)
+                .caption(
+                    format!(
+                        "{}{}",
+                        curve.mnemonic,
+                        curve.unit.as_deref().map(|u| format!(" ({u})")).unwrap_or_default()
+                    ),
+                    ("sans-serif", 14),
+                )
+                .build_cartesian_2d(
+                    x_range,
+                    depth_max..depth_min, // depth increases downward
+                )?;
+
+            chart.configure_mesh().disable_mesh().x_labels(6).y_labels(15).draw()?;
+
+            let series = las.ascii_log_data.rows.iter().filter_map(|row| {
+                let v = row[curve.col_idx];
+                if v == null_value { None } else { Some((v, row[0])) }
+            });
+
+            chart.draw_series(LineSeries::new(
+                series,
+                ShapeStyle {
+                    color: BLUE_A700.to_rgba(),
+                    filled: false,
+                    stroke_width: 1,
+                },
+            ))?;
+        }
+    }
+
+    root.present()?;
+    Ok(())
+}
+
 // Helper - put at bottom to not take up space
 pub(crate) fn _print_parsed_las_file(parsed_file: &ParsedFile) {
     for section in &parsed_file.sections {
         println!("{:?}", section.header.kind);
+        if let Some(comments) = section.comments.as_ref() {
+            for comment in comments {
+                println!("\t{comment}");
+            }
+        }
         for entry in &section.entries {
             println!("\t{entry:?}");
         }

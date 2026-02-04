@@ -9,7 +9,8 @@ mod tokenizer;
 pub use errors::*;
 pub use parser::*;
 pub use sections::*;
-pub use tokenizer::*;
+
+pub(crate) use tokenizer::*;
 
 use serde::{self, Deserialize, Serialize};
 use std::{fs::File, io::BufReader};

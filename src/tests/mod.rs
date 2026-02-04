@@ -21,6 +21,7 @@ fn test_parsed_file_to_las_file() {
 fn test_good_sample() {
     let file_path = "las_files/_good_sample_1.las";
     let _parsed = parse_las_file(open_file(file_path)).unwrap();
+    _print_parsed_las_file(&_parsed);
 }
 
 #[test]
@@ -53,11 +54,12 @@ fn test_no_space_before_last_colon() {
 
 #[test]
 #[ignore = "for generating plots"]
+// run with 'cargo nextest run test_plotting --lib --nocapture --run-ignored=only'
 fn test_plotting() {
-    let file_name = "4771-36-SESE.las";
+    let file_name = "00-01-01-073-05W5-0.las";
     let file_path = &format!("las_files/{file_name}");
     let output_plot_png = &format!("./plots/{file_name}.png");
     let _parsed = parse_las_file(open_file(file_path)).unwrap();
     let las_file = LasFile::try_from(_parsed).unwrap();
-    plot_las(&las_file, output_plot_png).expect("plot");
+    plot_las(&las_file, output_plot_png, 5).expect("plot");
 }

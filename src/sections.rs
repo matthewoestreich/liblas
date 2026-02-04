@@ -73,9 +73,14 @@ impl TryFrom<Section> for VersionInformation {
 // --------------------------------------------------------------------------------
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct OtherInformation {
+pub struct OtherInformationData {
     pub text: String,
     pub comments: Option<Vec<String>>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct OtherInformation {
+    pub data: Vec<OtherInformationData>,
     pub(crate) line_number: usize,
 }
 
@@ -93,12 +98,11 @@ impl TryFrom<Section> for OtherInformation {
         let mut other = OtherInformation::default();
 
         for entry in section.entries {
-            if let SectionEntry::Raw(s) = entry {
-                other.text += format!("{s}\n").as_str();
+            if let SectionEntry::Raw { text, comments } = entry {
+                other.data.push(OtherInformationData { text, comments });
             }
         }
 
-        other.comments = section.comments;
         other.line_number = section.line;
         Ok(other)
     }

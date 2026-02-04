@@ -34,6 +34,7 @@ where
     current_section: Option<Section>,
     state: ParserState,
     parsed_sections: HashMap<SectionKind, usize>,
+    comments: Option<Vec<String>>,
 }
 
 impl<I> LasParser<I>
@@ -46,6 +47,7 @@ where
             current_section: None,
             state: ParserState::Start,
             parsed_sections: HashMap::new(),
+            comments: None,
         }
     }
 
@@ -68,7 +70,7 @@ where
                 // We are parsing a data line within a section.
                 LasToken::DataLine { raw, line_number } => {
                     if let Some(section) = self.current_section.as_mut() {
-                        section.parse_line(&raw, line_number)?;
+                        section.parse_line(&raw, line_number, self.comments.take())?;
                     }
                 }
 
@@ -76,6 +78,8 @@ where
                 LasToken::SectionHeader { name, line_number } => {
                     let mut next_section = Section::new(name.to_string(), line_number);
                     let kind = next_section.header.kind;
+
+                    next_section.comments = self.comments.take();
 
                     // Version information section must be first!
                     if self.state == ParserState::Start && kind != SectionKind::Version {
@@ -114,8 +118,11 @@ where
                     self.current_section = Some(next_section);
                 }
 
-                // TODO : parse comments
-                _ => {}
+                LasToken::Comment { text, .. } => {
+                    self.comments
+                        .get_or_insert_with(Vec::new)
+                        .push(format!("# {text}").trim().to_string());
+                }
             }
         }
 
@@ -196,13 +203,21 @@ impl Section {
         }
     }
 
-    pub fn parse_line(&mut self, raw: &str, line_number: usize) -> Result<(), ParseError> {
+    pub fn parse_line(
+        &mut self,
+        raw: &str,
+        line_number: usize,
+        comments: Option<Vec<String>>,
+    ) -> Result<(), ParseError> {
         if self.header.kind == SectionKind::AsciiLogData {
             return self.parse_ascii_log_line(raw, line_number);
         }
 
         if self.header.kind == SectionKind::Other {
-            self.entries.push(SectionEntry::Raw(raw.trim().to_string()));
+            self.entries.push(SectionEntry::Raw {
+                text: raw.trim().to_string(),
+                comments,
+            });
             return Ok(());
         }
 
@@ -292,6 +307,7 @@ impl Section {
         }
 
         self.entries.push(SectionEntry::Delimited(KeyValueData {
+            comments,
             value,
             unit: unit.filter(|u| !u.is_empty()),
             description: description.filter(|d| !d.is_empty()),
@@ -430,8 +446,14 @@ impl From<&str> for SectionKind {
 #[allow(dead_code)]
 pub(crate) enum SectionEntry {
     Delimited(KeyValueData),
-    AsciiRow(Vec<f64>),
-    Raw(String),
+    AsciiRow {
+        data: Vec<f64>,
+        comments: Option<Vec<String>>,
+    },
+    Raw {
+        text: String,
+        comments: Option<Vec<String>>,
+    },
 }
 
 // The sections "VERSION", "WELL", "CURVE" and "PARAMETER" use line delimiters.
@@ -441,6 +463,7 @@ pub struct KeyValueData {
     pub unit: Option<String>,
     pub value: Option<LasValue>,
     pub description: Option<String>,
+    pub comments: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

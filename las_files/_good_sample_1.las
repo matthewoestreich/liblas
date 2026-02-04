@@ -1,3 +1,4 @@
+#  Comment before version info
 ~VERSION INFORMATION
 VERS. 2.0 : CWLS LOG ASCII STANDARD -VERSION 2.0
 WRAP. NO : ONE LINE PER DEPTH STEP
@@ -39,7 +40,10 @@ MDEN . 2710.0000 : LOGGING MATRIX DENSITY
 RMF .OHMM 0.2160 : MUD FILTRATE RESISTIVITY
 DFD .K/M3 1525.0000 : DRILL FLUID DENSITY
 ~OTHER
+# First comment in other
 Note: The logging tools became stuck at 625 metres causing the
+# Second comment in other 
+# Second line in second comment in other
 data between 625 metres and 615 metres to be invalid.
 #
 ~A DEPTH DT RHOB NPHI SFLU SFLA ILM ILD
