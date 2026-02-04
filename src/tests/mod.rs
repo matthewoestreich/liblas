@@ -51,6 +51,16 @@ fn test_no_space_before_last_colon() {
 }
 
 #[test]
+#[ignore = "for displaying raw las"]
+// run with 'cargo nextest run test_to_las_str --lib --nocapture --run-ignored=only'
+fn test_to_las_str() {
+    let file_path = "las_files/_good_sample_1.las";
+    let parsed = parse_las_file(open_file(file_path)).unwrap();
+    let las_file = LasFile::try_from(parsed).expect("las file");
+    println!("{las_file}");
+}
+
+#[test]
 #[ignore = "for generating plots"]
 // run with 'cargo nextest run test_plotting --lib --nocapture --run-ignored=only'
 fn test_plotting() {

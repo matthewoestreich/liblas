@@ -473,11 +473,13 @@ impl fmt::Display for KeyValueData {
         if let Some(unit) = self.unit.as_ref() {
             write!(f, "{unit}")?;
         }
+        write!(f, " ")?;
         if let Some(value) = self.value.as_ref() {
-            write!(f, " {value} : ")?;
+            write!(f, "{value} ")?;
         }
+        write!(f, ":")?;
         if let Some(description) = self.description.as_ref() {
-            write!(f, "{description}")?;
+            write!(f, " {description}")?;
         }
         Ok(())
     }
