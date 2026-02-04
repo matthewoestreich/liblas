@@ -20,7 +20,7 @@ pub(crate) fn depths(las: &LasFile) -> Vec<f64> {
     if !first_header_col.to_lowercase().starts_with("dept") {
         panic!("first header column is not depth! got {first_header_col}");
     }
-    las.ascii_log_data.rows.iter().map(|row| row[0]).collect()
+    las.ascii_log_data.rows.iter().map(|row| row[0].value).collect()
 }
 
 /// One plotted curve (column)
@@ -77,12 +77,12 @@ pub(crate) fn x_range_for_curve(las: &LasFile, col_idx: usize, pad_frac: f64) ->
     let mut max = f64::NEG_INFINITY;
 
     for row in &las.ascii_log_data.rows {
-        let v = row[col_idx];
-        if v == null_value {
+        let v = &row[col_idx];
+        if v.value == null_value {
             continue;
         }
-        min = min.min(v);
-        max = max.max(v);
+        min = min.min(v.value);
+        max = max.max(v.value);
     }
 
     if !min.is_finite() || min == max {
@@ -91,67 +91,6 @@ pub(crate) fn x_range_for_curve(las: &LasFile, col_idx: usize, pad_frac: f64) ->
 
     let pad = (max - min) * pad_frac;
     Some((min - pad)..(max + pad))
-}
-
-/// Plot LAS file to PNG
-pub(crate) fn _plot_las_old(las: &LasFile, output: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let depths = depths(las);
-    let curves = plot_curves(las);
-
-    if depths.is_empty() || curves.is_empty() {
-        return Ok(());
-    }
-
-    let depth_min = *depths.first().unwrap();
-    let depth_max = *depths.last().unwrap();
-
-    let root = BitMapBackend::new(output, (1920, 1080)).into_drawing_area();
-    root.fill(&WHITE)?;
-
-    // One vertical track per curve
-    let tracks = root.split_evenly((1, curves.len()));
-
-    let null_value = match las.well_information.null.value.as_ref() {
-        Some(LasValue::Float(v)) => v.value,
-        Some(LasValue::Int(v)) => *v as f64,
-        _ => unreachable!(),
-    };
-
-    for (area, curve) in tracks.iter().zip(curves.iter()) {
-        let x_range = match x_range_for_curve(las, curve.col_idx, 0.05) {
-            Some(r) => r,
-            None => continue,
-        };
-
-        let mut chart = ChartBuilder::on(area)
-            .margin(10)
-            .set_label_area_size(LabelAreaPosition::Left, 60)
-            .set_label_area_size(LabelAreaPosition::Bottom, 40)
-            .caption(
-                format!(
-                    "{}{}",
-                    curve.mnemonic,
-                    curve.unit.as_deref().map(|u| format!(" ({u})")).unwrap_or_default(),
-                ),
-                ("sans-serif", 16),
-            )
-            .build_cartesian_2d(
-                x_range,
-                depth_max..depth_min, // depth increases downward
-            )?;
-
-        chart.configure_mesh().disable_mesh().x_labels(10).y_labels(20).draw()?;
-
-        let series = las.ascii_log_data.rows.iter().filter_map(|row| {
-            let v = row[curve.col_idx];
-            if v == null_value { None } else { Some((v, row[0])) }
-        });
-
-        chart.draw_series(LineSeries::new(series, &BLUE_A700))?;
-    }
-
-    root.present()?;
-    Ok(())
 }
 
 pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Result<(), Box<dyn std::error::Error>> {
@@ -213,8 +152,12 @@ pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Re
             chart.configure_mesh().disable_mesh().x_labels(6).y_labels(15).draw()?;
 
             let series = las.ascii_log_data.rows.iter().filter_map(|row| {
-                let v = row[curve.col_idx];
-                if v == null_value { None } else { Some((v, row[0])) }
+                let v = &row[curve.col_idx];
+                if v.value == null_value {
+                    None
+                } else {
+                    Some((v.value, row[0].value))
+                }
             });
 
             chart.draw_series(LineSeries::new(

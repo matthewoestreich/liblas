@@ -58,6 +58,9 @@ pub enum ParseError {
         raw_value: String,
         line_number: usize,
     },
+    InvalidAsciiFloatValue {
+        raw_value: String,
+    },
     AsciiColumnsMismatch {
         line_number: usize,
         num_cols_in_headers: usize,

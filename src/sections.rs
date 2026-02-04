@@ -3,6 +3,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    LasFloat,
     errors::ParseError,
     parser::{KeyValueData, LasValue, Section, SectionEntry, SectionKind},
 };
@@ -171,7 +172,7 @@ impl TryFrom<Section> for OtherInformation {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AsciiLogData {
     pub headers: Vec<String>,
-    pub rows: Vec<Vec<f64>>,
+    pub rows: Vec<Vec<LasFloat>>,
     pub comments: Option<Vec<String>>,
     pub(crate) line_number: usize,
     pub(crate) header: String,
@@ -181,9 +182,9 @@ impl fmt::Display for AsciiLogData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write_comments(f, &self.comments)?;
         writeln!(f, "{}", self.header)?;
-        for col in self.rows.iter() {
-            for cell in col.iter() {
-                write!(f, "{cell} ")?;
+        for row in self.rows.iter() {
+            for cell in row.iter() {
+                write!(f, "{} ", cell.raw.clone())?;
             }
             writeln!(f)?;
         }

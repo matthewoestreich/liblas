@@ -5,6 +5,7 @@ use core::fmt;
 use std::{
     collections::{HashMap, hash_map::Entry},
     iter::Peekable,
+    str::FromStr,
 };
 
 const REQUIRED_SECTIONS: [SectionKind; 4] = [
@@ -183,7 +184,7 @@ pub(crate) struct Section {
     pub line: usize,
     pub entries: Vec<SectionEntry>,
     pub ascii_headers: Option<Vec<String>>,
-    pub ascii_rows: Vec<Vec<f64>>,
+    pub ascii_rows: Vec<Vec<LasFloat>>,
     pub comments: Option<Vec<String>>,
 }
 
@@ -329,10 +330,10 @@ impl Section {
             .as_ref()
             .ok_or(ParseError::AsciiLogDataSectionNotLast { line_number })?;
 
-        let values: Vec<f64> = raw
+        let values: Vec<LasFloat> = raw
             .split_whitespace()
             .map(|s| {
-                s.parse::<f64>().map_err(|_| ParseError::InvalidAsciiValue {
+                s.parse::<LasFloat>().map_err(|_| ParseError::InvalidAsciiValue {
                     line_number,
                     raw_value: s.to_string(),
                 })
@@ -494,7 +495,7 @@ impl fmt::Display for LasValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LasValue::Int(i) => write!(f, "{i}"),
-            LasValue::Float(fl) => write!(f, "{fl}"),
+            LasValue::Float(lf) => write!(f, "{}", lf.raw),
             LasValue::Text(t) => write!(f, "{t}"),
         }
     }
@@ -526,6 +527,20 @@ pub struct LasFloat {
     pub raw: String,
 }
 
+impl FromStr for LasFloat {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = s.parse::<f64>().map_err(|_| ParseError::InvalidAsciiFloatValue {
+            raw_value: s.to_string(),
+        })?;
+        Ok(LasFloat {
+            raw: s.to_string(),
+            value,
+        })
+    }
+}
+
 impl fmt::Display for LasFloat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.raw)
@@ -537,7 +552,7 @@ impl Serialize for LasFloat {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&self.raw)
+        serializer.serialize_f64(self.value)
     }
 }
 
@@ -546,8 +561,10 @@ impl<'de> Deserialize<'de> for LasFloat {
     where
         D: serde::Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        let value = s.parse::<f64>().map_err(serde::de::Error::custom)?;
-        Ok(Self { raw: s, value })
+        let v = f64::deserialize(deserializer)?;
+        Ok(Self {
+            raw: v.to_string(),
+            value: v,
+        })
     }
 }

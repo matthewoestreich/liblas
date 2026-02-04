@@ -59,6 +59,10 @@ impl LasFile {
         })
     }
 
+    pub fn to_las_str(&mut self) -> String {
+        self.to_string()
+    }
+
     pub fn parse(las_file_path: &str) -> Result<Self, ParseError> {
         let reader = BufReader::new(File::open(las_file_path)?);
         let mut parser = LasParser::new(LasTokenizer::new(reader));
