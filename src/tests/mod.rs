@@ -9,6 +9,12 @@ const _DUPLICATE_WELL_SECTIONS: &str = "las_files/duplicate_well_sections.las";
 const _MISSING_REQUIRED_WELL_DATA: &str = "las_files/missing_required_well_info.las";
 const _NO_FIRST_SPACE_AFTER_FIRST_DOT: &str = "las_files/no_first_space_after_first_dot.las";
 
+// To export as YAML run:
+// `cargo run -- --las las_files/_good_sample_1.las --out exported_las/gooddd.yaml --out-type yaml --force`
+
+// To export as JSON run:
+// `cargo run -- --las las_files/_good_sample_1.las --out exported_las/gooddd.json --out-type json --force`
+
 #[test]
 fn test_parsed_file_to_las_file() {
     let file_path = "las_files/_good_sample_1.las";

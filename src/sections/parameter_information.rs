@@ -6,7 +6,10 @@ use std::fmt;
 pub struct ParameterInformation {
     pub parameters: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
+
+    #[serde(skip)]
     pub(crate) line_number: usize,
+    #[serde(skip)]
     pub(crate) header: String,
 }
 

@@ -95,7 +95,7 @@ data between 625 metres and 615 metres to be invalid.
 
 </details>
 
-## Parse LAS File
+# Parse LAS File
 
 I will be using `.expect()` to simplify the example code.
 
@@ -107,9 +107,9 @@ fn main() {
 }
 ```
 
-### Convert Parsed LAS File
+# Convert Parsed LAS File
 
-**Into JSON**
+## To JSON
 
 ```rust
 let json_string = parsed_file.to_json_str().expect("json");
@@ -136,9 +136,7 @@ let json_string = parsed_file.to_json_str().expect("json");
       "comments": null
     },
     "additional": [],
-    "comments": ["Comment before version info"],
-    "line_number": 2,
-    "header": "~VERSION INFORMATION"
+    "comments": ["Comment before version info"]
   },
   "WellInformation": {
     "STRT": {
@@ -241,9 +239,7 @@ let json_string = parsed_file.to_json_str().expect("json");
         "comments": null
       }
     ],
-    "comments": null,
-    "line_number": 5,
-    "header": "~WELL INFORMATION"
+    "comments": null
   },
   "AsciiLogData": {
     "headers": ["DEPT", "DT", "RHOB", "NPHI", "SFLU", "SFLA", "ILM", "ILD"],
@@ -252,9 +248,7 @@ let json_string = parsed_file.to_json_str().expect("json");
       [1669.875, 123.45, 2550.0, 0.45, 123.45, 123.45, 110.2, 5.6],
       [1669.75, 123.45, 2550.0, 0.45, 123.45, 123.45, 110.2, 105.6]
     ],
-    "comments": [""],
-    "line_number": 50,
-    "header": "~A DEPTH DT RHOB NPHI SFLU SFLA ILM ILD"
+    "comments": [""]
   },
   "CurveInformation": {
     "curves": [
@@ -318,9 +312,7 @@ let json_string = parsed_file.to_json_str().expect("json");
         "comments": null
       }
     ],
-    "comments": null,
-    "line_number": 21,
-    "header": "~CURVE INFORMATION"
+    "comments": null
   },
   "OtherInformation": {
     "data": [
@@ -336,9 +328,7 @@ let json_string = parsed_file.to_json_str().expect("json");
         ]
       }
     ],
-    "comments": ["This is a comment above other"],
-    "line_number": 43,
-    "header": "~OTHER"
+    "comments": ["This is a comment above other"]
   },
   "ParameterInformation": {
     "parameters": [
@@ -395,16 +385,14 @@ let json_string = parsed_file.to_json_str().expect("json");
         "comments": null
       }
     ],
-    "comments": null,
-    "line_number": 32,
-    "header": "~PARAMETER INFORMATION"
+    "comments": null
   }
 }
 ```
 
 </details>
 
-**Into YAML**
+## To YAML
 
 ```rust
 let yaml_string = parsed_file.to_yaml_str().expect("yaml");
@@ -430,8 +418,6 @@ VersionInformation:
   additional: []
   comments:
     - Comment before version info
-  line_number: 2
-  header: ~VERSION INFORMATION
 WellInformation:
   STRT:
     mnemonic: STRT
@@ -518,8 +504,6 @@ WellInformation:
       description: ERCB LICENCE NUMB
       comments: null
   comments: null
-  line_number: 5
-  header: ~WELL INFORMATION
 AsciiLogData:
   headers:
     - DEPT
@@ -557,8 +541,6 @@ AsciiLogData:
       - 105.6
   comments:
     - ""
-  line_number: 50
-  header: ~A DEPTH DT RHOB NPHI SFLU SFLA ILM ILD
 CurveInformation:
   curves:
     - mnemonic: DEPT
@@ -604,8 +586,6 @@ CurveInformation:
       description: 8 DEEP RESISTIVITY
       comments: null
   comments: null
-  line_number: 21
-  header: ~CURVE INFORMATION
 OtherInformation:
   data:
     - text: "Note: The logging tools became stuck at 625 metres causing the"
@@ -617,8 +597,6 @@ OtherInformation:
         - Second line in second comment in other
   comments:
     - This is a comment above other
-  line_number: 43
-  header: ~OTHER
 ParameterInformation:
   parameters:
     - mnemonic: MUD
@@ -659,13 +637,11 @@ ParameterInformation:
       description: DRILL FLUID DENSITY
       comments: null
   comments: null
-  line_number: 32
-  header: ~PARAMETER INFORMATION
 ```
 
 </details>
 
-**Back into LAS**
+## Back into LAS
 
 ```rust
 let raw_las_string = parsed_file.to_las_str();

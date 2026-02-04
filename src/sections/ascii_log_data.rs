@@ -7,7 +7,10 @@ pub struct AsciiLogData {
     pub headers: Vec<String>,
     pub rows: Vec<Vec<LasFloat>>,
     pub comments: Option<Vec<String>>,
+
+    #[serde(skip)]
     pub(crate) line_number: usize,
+    #[serde(skip)]
     pub(crate) header: String,
 }
 
