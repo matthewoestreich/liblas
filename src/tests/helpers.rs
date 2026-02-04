@@ -67,9 +67,9 @@ pub(crate) fn plot_curves(las: &LasFile) -> Vec<PlotCurve> {
 
 /// Compute per-curve X axis range ignoring NULLs
 pub(crate) fn x_range_for_curve(las: &LasFile, col_idx: usize, pad_frac: f64) -> Option<Range<f64>> {
-    let null_value = match las.well_information.null.value {
-        Some(LasValue::Float(v)) => v,
-        Some(LasValue::Int(v)) => v as f64,
+    let null_value = match las.well_information.null.value.as_ref() {
+        Some(LasValue::Float(v)) => v.value,
+        Some(LasValue::Int(v)) => *v as f64,
         _ => return None,
     };
 
@@ -111,9 +111,9 @@ pub(crate) fn _plot_las_old(las: &LasFile, output: &str) -> Result<(), Box<dyn s
     // One vertical track per curve
     let tracks = root.split_evenly((1, curves.len()));
 
-    let null_value = match las.well_information.null.value {
-        Some(LasValue::Float(v)) => v,
-        Some(LasValue::Int(v)) => v as f64,
+    let null_value = match las.well_information.null.value.as_ref() {
+        Some(LasValue::Float(v)) => v.value,
+        Some(LasValue::Int(v)) => *v as f64,
         _ => unreachable!(),
     };
 
@@ -173,9 +173,9 @@ pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Re
     // Split vertically into rows
     let row_areas = root.split_evenly((num_rows, 1));
 
-    let null_value = match las.well_information.null.value {
-        Some(LasValue::Float(v)) => v,
-        Some(LasValue::Int(v)) => v as f64,
+    let null_value = match las.well_information.null.value.as_ref() {
+        Some(LasValue::Float(v)) => v.value,
+        Some(LasValue::Int(v)) => *v as f64,
         _ => unreachable!(),
     };
 

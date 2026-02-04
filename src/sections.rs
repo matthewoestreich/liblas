@@ -11,6 +11,23 @@ pub(crate) fn any_present<T>(items: &[&Option<T>]) -> bool {
     items.iter().any(|o| o.is_some())
 }
 
+pub(crate) fn write_kv_opt(f: &mut fmt::Formatter<'_>, kv: &Option<KeyValueData>) -> fmt::Result {
+    if let Some(v) = kv {
+        writeln!(f, "{v}")?;
+    }
+    Ok(())
+}
+
+pub(crate) fn write_comments(f: &mut fmt::Formatter<'_>, comments: &Option<Vec<String>>) -> fmt::Result {
+    if let Some(cs) = comments {
+        for c in cs {
+            let fc = format!("# {c}").trim().to_string();
+            writeln!(f, "{fc}")?;
+        }
+    }
+    Ok(())
+}
+
 // --------------------------------------------------------------------------------
 // ------------------ VERSION INFORMATION -----------------------------------------
 // --------------------------------------------------------------------------------
@@ -29,11 +46,7 @@ pub struct VersionInformation {
 
 impl fmt::Display for VersionInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(comments) = self.comments.as_ref() {
-            for comment in comments {
-                writeln!(f, "{comment}")?;
-            }
-        }
+        write_comments(f, &self.comments)?;
         writeln!(f, "{}", self.header)?;
         writeln!(f, "{}", self.version)?;
         writeln!(f, "{}", self.wrap)?;
@@ -101,11 +114,7 @@ pub struct OtherInformationData {
 
 impl fmt::Display for OtherInformationData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(comments) = self.comments.as_ref() {
-            for comment in comments {
-                writeln!(f, "{comment}")?;
-            }
-        }
+        write_comments(f, &self.comments)?;
         writeln!(f, "{}", self.text)
     }
 }
@@ -120,11 +129,7 @@ pub struct OtherInformation {
 
 impl fmt::Display for OtherInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(comments) = self.comments.as_ref() {
-            for comment in comments {
-                writeln!(f, "{comment}")?;
-            }
-        }
+        write_comments(f, &self.comments)?;
         writeln!(f, "{}", self.header)?;
         for info in self.data.iter() {
             write!(f, "{info}")?;
@@ -174,11 +179,7 @@ pub struct AsciiLogData {
 
 impl fmt::Display for AsciiLogData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(comments) = self.comments.as_ref() {
-            for comment in comments {
-                writeln!(f, "{comment}")?;
-            }
-        }
+        write_comments(f, &self.comments)?;
         writeln!(f, "{}", self.header)?;
         for col in self.rows.iter() {
             for cell in col.iter() {
@@ -234,11 +235,7 @@ pub struct CurveInformation {
 
 impl fmt::Display for CurveInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(comments) = self.comments.as_ref() {
-            for comment in comments {
-                writeln!(f, "{comment}")?;
-            }
-        }
+        write_comments(f, &self.comments)?;
         writeln!(f, "{}", self.header)?;
         for curve in self.curves.iter() {
             writeln!(f, "{curve}")?;
@@ -287,11 +284,7 @@ pub struct ParameterInformation {
 
 impl fmt::Display for ParameterInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(comments) = self.comments.as_ref() {
-            for comment in comments {
-                writeln!(f, "{comment}")?;
-            }
-        }
+        write_comments(f, &self.comments)?;
         writeln!(f, "{}", self.header)?;
         for param in self.parameters.iter() {
             writeln!(f, "{param}")?;
@@ -379,12 +372,33 @@ pub struct WellInformation {
 
 impl fmt::Display for WellInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(comments) = self.comments.as_ref() {
-            for comment in comments {
-                writeln!(f, "{comment}")?;
-            }
+        write_comments(f, &self.comments)?;
+        writeln!(f, "{}", self.header)?;
+        // Mandatory fields
+        writeln!(f, "{}", self.strt)?;
+        writeln!(f, "{}", self.stop)?;
+        writeln!(f, "{}", self.step)?;
+        writeln!(f, "{}", self.null)?;
+        // Optional standard fields
+        write_kv_opt(f, &self.comp)?;
+        write_kv_opt(f, &self.well)?;
+        write_kv_opt(f, &self.fld)?;
+        write_kv_opt(f, &self.loc)?;
+        // Location (one-of, but spec allows multiple lines syntactically)
+        write_kv_opt(f, &self.prov)?;
+        write_kv_opt(f, &self.cnty)?;
+        write_kv_opt(f, &self.stat)?;
+        write_kv_opt(f, &self.ctry)?;
+        write_kv_opt(f, &self.srvc)?;
+        write_kv_opt(f, &self.date)?;
+        // Identity (one-of)
+        write_kv_opt(f, &self.uwi)?;
+        write_kv_opt(f, &self.api)?;
+        // Additional user-defined lines
+        for kv in &self.additional {
+            writeln!(f, "{kv}")?;
         }
-        writeln!(f, "{}", self.header)
+        Ok(())
     }
 }
 

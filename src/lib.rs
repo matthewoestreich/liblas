@@ -33,16 +33,16 @@ pub struct LasFile {
 
 impl fmt::Display for LasFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}", self.version_information)?;
-        writeln!(f, "{}", self.well_information)?;
-        writeln!(f, "{}", self.curve_information)?;
+        write!(f, "{}", self.version_information)?;
+        write!(f, "{}", self.well_information)?;
+        write!(f, "{}", self.curve_information)?;
         if let Some(parameter) = self.parameter_information.as_ref() {
-            writeln!(f, "{parameter}")?;
+            write!(f, "{parameter}")?;
         }
         if let Some(other) = self.other_information.as_ref() {
-            writeln!(f, "{other}")?;
+            write!(f, "{other}")?;
         }
-        writeln!(f, "{}", self.ascii_log_data)
+        write!(f, "{}", self.ascii_log_data)
     }
 }
 

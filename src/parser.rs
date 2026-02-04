@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
-use crate::{errors::ParseError, tokenizer::LasToken};
+use crate::{errors::ParseError, tokenizer::LasToken, write_comments};
 use core::fmt;
 use std::{
     collections::{HashMap, hash_map::Entry},
@@ -120,9 +120,7 @@ where
                 }
 
                 LasToken::Comment { text, .. } => {
-                    self.comments
-                        .get_or_insert_with(Vec::new)
-                        .push(format!("# {text}").trim().to_string());
+                    self.comments.get_or_insert_with(Vec::new).push(text);
                 }
             }
         }
@@ -469,17 +467,13 @@ pub struct KeyValueData {
 
 impl fmt::Display for KeyValueData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(comments) = self.comments.as_ref() {
-            for comment in comments {
-                writeln!(f, "{comment}")?;
-            }
-        }
+        write_comments(f, &self.comments)?;
         write!(f, "{}.", self.mnemonic)?;
         if let Some(unit) = self.unit.as_ref() {
-            write!(f, "{unit} ")?;
+            write!(f, "{unit}")?;
         }
         if let Some(value) = self.value.as_ref() {
-            write!(f, "{value} : ")?;
+            write!(f, " {value} : ")?;
         }
         if let Some(description) = self.description.as_ref() {
             write!(f, "{description}")?;
@@ -492,7 +486,7 @@ impl fmt::Display for KeyValueData {
 #[serde(untagged)]
 pub enum LasValue {
     Int(i64),
-    Float(f64),
+    Float(LasFloat),
     Text(String),
 }
 
@@ -500,7 +494,7 @@ impl fmt::Display for LasValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LasValue::Int(i) => write!(f, "{i}"),
-            LasValue::Float(fl) => write!(f, "{:.1}", fl),
+            LasValue::Float(fl) => write!(f, "{fl}"),
             LasValue::Text(t) => write!(f, "{t}"),
         }
     }
@@ -514,11 +508,46 @@ impl LasValue {
         } else if raw.contains('.')
             && let Ok(f) = raw.parse::<f64>()
         {
-            Some(LasValue::Float(f))
+            Some(LasValue::Float(LasFloat {
+                raw: raw.to_string(),
+                value: f,
+            }))
         } else if raw.is_empty() {
             None
         } else {
             Some(LasValue::Text(raw.to_string()))
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LasFloat {
+    pub value: f64,
+    pub raw: String,
+}
+
+impl fmt::Display for LasFloat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.raw)
+    }
+}
+
+impl Serialize for LasFloat {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.raw)
+    }
+}
+
+impl<'de> Deserialize<'de> for LasFloat {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let value = s.parse::<f64>().map_err(serde::de::Error::custom)?;
+        Ok(Self { raw: s, value })
     }
 }
