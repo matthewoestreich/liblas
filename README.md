@@ -31,7 +31,7 @@ let json_str = my_las_file.to_json_str()?;
 For this example, we will be using the following .las file (also located at `las_files/_good_sample_1.las`).
 
 <details>
-  <summary>Click to show raw .las file</summary>
+  <summary><h3>Click to show raw .las file</h3></summary>
 
 ```
 #  Comment before version info
@@ -112,7 +112,7 @@ let json_string = parsed_file.to_json_str().expect("json");
 ```
 
 <details>
-  <summary>Click to view LAS as JSON</summary>
+  <summary><h3>Click to view LAS as JSON</h3></summary>
 
 ```json
 {
@@ -407,7 +407,7 @@ let yaml_string = parsed_file.to_yaml_str().expect("yaml");
 ```
 
 <details>
-  <summary><h4>Click to show LAS as YAML</h4></summary>
+  <summary><h3>Click to show LAS as YAML</h3></summary>
 
 ```yaml
 VersionInformation:
