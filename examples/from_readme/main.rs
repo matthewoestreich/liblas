@@ -1,4 +1,4 @@
-use liblas::{LasFile, ParseError};
+use liblas::ParseError;
 
 fn main() -> Result<(), ParseError> {
     Ok(())

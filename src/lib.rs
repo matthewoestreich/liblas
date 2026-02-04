@@ -95,10 +95,10 @@ impl TryFrom<ParsedFile> for LasFile {
         //
         // Example of las file where curve mnemonic doesn't match data header.. (from https://www.minnelusa.com/sampledata.php)
         // The curve mnemonic is "RESD", but the data header is "Resist." (which is the DEEP RESISTIVITY curve/data)
-        if las_file.ascii_log_data.headers.len() != las_file.curve_information.curves.len() {
+        if las_file.ascii_log_data.rows[0].len() != las_file.curve_information.curves.len() {
             return Err(ParseError::CurvesAndAsciiDataColumnsMismatch {
                 num_curves: las_file.curve_information.curves.len(),
-                num_data_cols: las_file.ascii_log_data.headers.len(),
+                num_data_cols: las_file.ascii_log_data.rows[0].len(),
                 curves_line_number: las_file.curve_information.line_number,
                 ascii_data_line_number: las_file.ascii_log_data.line_number,
             });
