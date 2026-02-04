@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -22,6 +24,24 @@ pub struct VersionInformation {
     pub additional: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
     pub(crate) line_number: usize,
+    pub(crate) header: String,
+}
+
+impl fmt::Display for VersionInformation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(comments) = self.comments.as_ref() {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+            }
+        }
+        writeln!(f, "{}", self.header)?;
+        writeln!(f, "{}", self.version)?;
+        writeln!(f, "{}", self.wrap)?;
+        for addition in self.additional.iter() {
+            writeln!(f, "{addition}")?;
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<Section> for VersionInformation {
@@ -62,6 +82,7 @@ impl TryFrom<Section> for VersionInformation {
             });
         }
 
+        version.header = format!("~{}", section.header.raw);
         version.comments = section.comments;
         version.line_number = section.line;
         Ok(version)
@@ -78,11 +99,38 @@ pub struct OtherInformationData {
     pub comments: Option<Vec<String>>,
 }
 
+impl fmt::Display for OtherInformationData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(comments) = self.comments.as_ref() {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+            }
+        }
+        writeln!(f, "{}", self.text)
+    }
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct OtherInformation {
     pub data: Vec<OtherInformationData>,
     pub comments: Option<Vec<String>>,
     pub(crate) line_number: usize,
+    pub(crate) header: String,
+}
+
+impl fmt::Display for OtherInformation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(comments) = self.comments.as_ref() {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+            }
+        }
+        writeln!(f, "{}", self.header)?;
+        for info in self.data.iter() {
+            write!(f, "{info}")?;
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<Section> for OtherInformation {
@@ -104,6 +152,7 @@ impl TryFrom<Section> for OtherInformation {
             }
         }
 
+        other.header = format!("~{}", section.header.raw);
         other.comments = section.comments;
         other.line_number = section.line;
         Ok(other)
@@ -120,6 +169,24 @@ pub struct AsciiLogData {
     pub rows: Vec<Vec<f64>>,
     pub comments: Option<Vec<String>>,
     pub(crate) line_number: usize,
+    pub(crate) header: String,
+}
+
+impl fmt::Display for AsciiLogData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(comments) = self.comments.as_ref() {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+            }
+        }
+        writeln!(f, "{}", self.header)?;
+        for col in self.rows.iter() {
+            for cell in col.iter() {
+                write!(f, "{cell} ")?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<Section> for AsciiLogData {
@@ -146,6 +213,7 @@ impl TryFrom<Section> for AsciiLogData {
             ascii_logs.rows = section.ascii_rows;
         }
 
+        ascii_logs.header = format!("~{}", section.header.raw);
         ascii_logs.comments = section.comments;
         ascii_logs.line_number = section.line;
         Ok(ascii_logs)
@@ -161,6 +229,22 @@ pub struct CurveInformation {
     pub curves: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
     pub(crate) line_number: usize,
+    pub(crate) header: String,
+}
+
+impl fmt::Display for CurveInformation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(comments) = self.comments.as_ref() {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+            }
+        }
+        writeln!(f, "{}", self.header)?;
+        for curve in self.curves.iter() {
+            writeln!(f, "{curve}")?;
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<Section> for CurveInformation {
@@ -182,6 +266,7 @@ impl TryFrom<Section> for CurveInformation {
             }
         }
 
+        curve.header = format!("~{}", section.header.raw);
         curve.comments = section.comments;
         curve.line_number = section.line;
         Ok(curve)
@@ -197,6 +282,22 @@ pub struct ParameterInformation {
     pub parameters: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
     pub(crate) line_number: usize,
+    pub(crate) header: String,
+}
+
+impl fmt::Display for ParameterInformation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(comments) = self.comments.as_ref() {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+            }
+        }
+        writeln!(f, "{}", self.header)?;
+        for param in self.parameters.iter() {
+            writeln!(f, "{param}")?;
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<Section> for ParameterInformation {
@@ -218,6 +319,7 @@ impl TryFrom<Section> for ParameterInformation {
             }
         }
 
+        parameter.header = format!("~{}", section.header.raw);
         parameter.comments = section.comments;
         parameter.line_number = section.line;
         Ok(parameter)
@@ -272,6 +374,18 @@ pub struct WellInformation {
     pub additional: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
     pub(crate) line_number: usize,
+    pub(crate) header: String,
+}
+
+impl fmt::Display for WellInformation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(comments) = self.comments.as_ref() {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+            }
+        }
+        writeln!(f, "{}", self.header)
+    }
 }
 
 impl WellInformation {
@@ -382,6 +496,7 @@ impl TryFrom<Section> for WellInformation {
             }
         }
 
+        well.header = format!("~{}", section.header.raw);
         well.comments = section.comments;
         well.line_number = section.line;
 

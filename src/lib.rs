@@ -13,7 +13,7 @@ pub use sections::*;
 pub(crate) use tokenizer::*;
 
 use serde::{self, Deserialize, Serialize};
-use std::{fs::File, io::BufReader};
+use std::{fmt, fs::File, io::BufReader};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct LasFile {
@@ -29,6 +29,21 @@ pub struct LasFile {
     pub other_information: Option<OtherInformation>,
     #[serde(rename = "ParameterInformation")]
     pub parameter_information: Option<ParameterInformation>,
+}
+
+impl fmt::Display for LasFile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{}", self.version_information)?;
+        writeln!(f, "{}", self.well_information)?;
+        writeln!(f, "{}", self.curve_information)?;
+        if let Some(parameter) = self.parameter_information.as_ref() {
+            writeln!(f, "{parameter}")?;
+        }
+        if let Some(other) = self.other_information.as_ref() {
+            writeln!(f, "{other}")?;
+        }
+        writeln!(f, "{}", self.ascii_log_data)
+    }
 }
 
 impl LasFile {

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{errors::ParseError, tokenizer::LasToken};
+use core::fmt;
 use std::{
     collections::{HashMap, hash_map::Entry},
     iter::Peekable,
@@ -466,12 +467,43 @@ pub struct KeyValueData {
     pub comments: Option<Vec<String>>,
 }
 
+impl fmt::Display for KeyValueData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(comments) = self.comments.as_ref() {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+            }
+        }
+        write!(f, "{}.", self.mnemonic)?;
+        if let Some(unit) = self.unit.as_ref() {
+            write!(f, "{unit} ")?;
+        }
+        if let Some(value) = self.value.as_ref() {
+            write!(f, "{value} : ")?;
+        }
+        if let Some(description) = self.description.as_ref() {
+            write!(f, "{description}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum LasValue {
     Int(i64),
     Float(f64),
     Text(String),
+}
+
+impl fmt::Display for LasValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LasValue::Int(i) => write!(f, "{i}"),
+            LasValue::Float(fl) => write!(f, "{:.1}", fl),
+            LasValue::Text(t) => write!(f, "{t}"),
+        }
+    }
 }
 
 impl LasValue {

@@ -14,7 +14,7 @@ fn test_parsed_file_to_las_file() {
     let file_path = "las_files/_good_sample_1.las";
     let _parsed = parse_las_file(open_file(file_path)).unwrap();
     let las_file = LasFile::try_from(_parsed).unwrap();
-    println!("{:?}", las_file.well_information);
+    println!("{las_file}");
 }
 
 #[test]
