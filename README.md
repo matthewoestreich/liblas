@@ -24,6 +24,10 @@ cargo install liblas
 let my_las_file = LasFile::parse("/some/file.las".into())?;
 // To json string?
 let json_str = my_las_file.to_json_str()?;
+// To yaml/yml string?
+let yaml_str = my_las_file.to_yaml_str()?;
+// Back to raw las?
+let raw_las_str = my_las_file.to_las_str();
 ```
 
 # Example
@@ -112,7 +116,7 @@ let json_string = parsed_file.to_json_str().expect("json");
 ```
 
 <details>
-  <summary><h3>Click to view LAS as JSON</h3></summary>
+  <summary><h3>Click to show LAS as JSON</h3></summary>
 
 ```json
 {
