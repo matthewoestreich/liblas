@@ -39,6 +39,7 @@ MATR . SAND : NEUTRON MATRIX
 MDEN . 2710.0000 : LOGGING MATRIX DENSITY
 RMF .OHMM 0.2160 : MUD FILTRATE RESISTIVITY
 DFD .K/M3 1525.0000 : DRILL FLUID DENSITY
+# This is a comment above other
 ~OTHER
 # First comment in other
 Note: The logging tools became stuck at 625 metres causing the

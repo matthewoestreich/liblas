@@ -81,6 +81,7 @@ pub struct OtherInformationData {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct OtherInformation {
     pub data: Vec<OtherInformationData>,
+    pub comments: Option<Vec<String>>,
     pub(crate) line_number: usize,
 }
 
@@ -103,6 +104,7 @@ impl TryFrom<Section> for OtherInformation {
             }
         }
 
+        other.comments = section.comments;
         other.line_number = section.line;
         Ok(other)
     }
