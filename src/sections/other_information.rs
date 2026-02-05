@@ -2,7 +2,7 @@ use crate::{ParseError, Section, SectionEntry, SectionKind, write_comments};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OtherInformationData {
     pub text: String,
     pub comments: Option<Vec<String>>,
@@ -19,12 +19,18 @@ impl fmt::Display for OtherInformationData {
 pub struct OtherInformation {
     pub data: Vec<OtherInformationData>,
     pub comments: Option<Vec<String>>,
-
+    pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
-    #[serde(skip)]
-    pub(crate) header: String,
 }
+
+impl PartialEq for OtherInformation {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data && self.comments == other.comments && self.header == other.header
+    }
+}
+
+impl Eq for OtherInformation {}
 
 impl fmt::Display for OtherInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

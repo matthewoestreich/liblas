@@ -6,12 +6,18 @@ use std::fmt;
 pub struct ParameterInformation {
     pub parameters: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
-
+    pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
-    #[serde(skip)]
-    pub(crate) header: String,
 }
+
+impl PartialEq for ParameterInformation {
+    fn eq(&self, other: &Self) -> bool {
+        self.parameters == other.parameters && self.comments == other.comments && self.header == other.header
+    }
+}
+
+impl Eq for ParameterInformation {}
 
 impl fmt::Display for ParameterInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

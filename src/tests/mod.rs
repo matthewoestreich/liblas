@@ -68,10 +68,9 @@ fn test_json_deserialization() {
     let file_path = "las_files/_good_sample_1.las";
     let parsed = parse_las_file(open_file(file_path)).unwrap();
     let mut las_file = LasFile::try_from(parsed).expect("parsed");
-    println!("OG_LAS_FILE = \n\n\n{las_file}");
     let json_str = las_file.to_json_str().expect("json");
     let back_to_las_file = LasFile::try_from_json_str(&json_str).expect("deserialize");
-    println!("{back_to_las_file}");
+    assert_eq!(las_file, back_to_las_file,);
 }
 
 #[test]

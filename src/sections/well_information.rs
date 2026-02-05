@@ -48,11 +48,37 @@ pub struct WellInformation {
     pub additional: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
 
+    pub header: String,
+
     #[serde(skip)]
     pub(crate) line_number: usize,
-    #[serde(skip)]
-    pub(crate) header: String,
 }
+
+impl PartialEq for WellInformation {
+    fn eq(&self, other: &Self) -> bool {
+        self.strt == other.strt
+            && self.stop == other.stop
+            && self.step == other.step
+            && self.null == other.null
+            && self.comp == other.comp
+            && self.well == other.well
+            && self.fld == other.fld
+            && self.loc == other.loc
+            && self.prov == other.prov
+            && self.cnty == other.cnty
+            && self.stat == other.stat
+            && self.ctry == other.ctry
+            && self.srvc == other.srvc
+            && self.date == other.date
+            && self.uwi == other.uwi
+            && self.api == other.api
+            && self.additional == other.additional
+            && self.comments == other.comments
+            && self.header == other.header
+    }
+}
+
+impl Eq for WellInformation {}
 
 impl fmt::Display for WellInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -6,12 +6,18 @@ use std::fmt;
 pub struct CurveInformation {
     pub curves: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
-
+    pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
-    #[serde(skip)]
-    pub(crate) header: String,
 }
+
+impl PartialEq for CurveInformation {
+    fn eq(&self, other: &Self) -> bool {
+        self.curves == other.curves && self.comments == other.comments && self.header == other.header
+    }
+}
+
+impl Eq for CurveInformation {}
 
 impl fmt::Display for CurveInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

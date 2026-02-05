@@ -7,12 +7,21 @@ pub struct AsciiLogData {
     pub headers: Vec<String>,
     pub rows: Vec<Vec<LasFloat>>,
     pub comments: Option<Vec<String>>,
-
+    pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
-    #[serde(skip)]
-    pub(crate) header: String,
 }
+
+impl PartialEq for AsciiLogData {
+    fn eq(&self, other: &Self) -> bool {
+        self.headers == other.headers
+            && self.rows == other.rows
+            && self.comments == other.comments
+            && self.header == other.header
+    }
+}
+
+impl Eq for AsciiLogData {}
 
 impl fmt::Display for AsciiLogData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

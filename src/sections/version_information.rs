@@ -10,12 +10,22 @@ pub struct VersionInformation {
     pub wrap: KeyValueData,
     pub additional: Vec<KeyValueData>,
     pub comments: Option<Vec<String>>,
-
+    pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
-    #[serde(skip)]
-    pub(crate) header: String,
 }
+
+impl PartialEq for VersionInformation {
+    fn eq(&self, other: &Self) -> bool {
+        self.version == other.version
+            && self.wrap == other.wrap
+            && self.additional == other.additional
+            && self.comments == other.comments
+            && self.header == other.header
+    }
+}
+
+impl Eq for VersionInformation {}
 
 impl fmt::Display for VersionInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
