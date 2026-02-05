@@ -185,11 +185,6 @@ pub(crate) struct SectionHeader {
     pub kind: SectionKind,
 }
 
-// TODO : Implement Deserialize for SectionHeader
-//
-//
-//
-
 #[allow(dead_code)]
 impl SectionHeader {
     pub fn new(name: String, kind: SectionKind) -> Self {
