@@ -66,6 +66,14 @@ impl fmt::Display for LasFile {
 }
 
 impl LasFile {
+    pub fn try_from_json_str(json_str: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(json_str)
+    }
+
+    pub fn try_from_yaml_str(yaml_str: &str) -> Result<Self, serde_yaml_ng::Error> {
+        serde_yaml_ng::from_str(yaml_str)
+    }
+
     pub fn to_json_str(&mut self) -> Result<String, ParseError> {
         serde_json::to_string_pretty(self).map_err(|_| ParseError::ConvertingTo {
             format: "json".to_string(),

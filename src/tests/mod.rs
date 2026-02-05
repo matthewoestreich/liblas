@@ -64,6 +64,16 @@ fn test_no_space_before_last_colon() {
 }
 
 #[test]
+fn test_json_deserialization() {
+    let file_path = "las_files/no_space_before_last_colon.las";
+    let parsed = parse_las_file(open_file(file_path)).unwrap();
+    let mut las_file = LasFile::try_from(parsed).expect("parsed");
+    let json_str = las_file.to_json_str().expect("json");
+    let back_to_las_file = LasFile::try_from_json_str(&json_str).expect("deserialize");
+    println!("{back_to_las_file}");
+}
+
+#[test]
 #[ignore = "for displaying raw las"]
 // run with 'cargo nextest run test_to_las_str --lib --nocapture --run-ignored=only'
 fn test_to_las_str() {
