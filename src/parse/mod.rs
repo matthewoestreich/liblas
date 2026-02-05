@@ -170,13 +170,8 @@ pub(crate) struct ParsedLasFile {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) enum SectionEntry {
     Delimited(KeyValueData),
-    AsciiRow {
-        data: Vec<f64>,
-        comments: Option<Vec<String>>,
-    },
     Raw {
         text: String,
         comments: Option<Vec<String>>,
