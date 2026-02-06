@@ -6,7 +6,7 @@ use crate::{parse::LasValue, write_comments};
 
 // The sections "VERSION", "WELL", "CURVE" and "PARAMETER" use line delimiters.
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct KeyValueData {
+pub struct DataLine {
     pub mnemonic: String,
     pub unit: Option<String>,
     pub value: Option<LasValue>,
@@ -14,7 +14,7 @@ pub struct KeyValueData {
     pub comments: Option<Vec<String>>,
 }
 
-impl fmt::Display for KeyValueData {
+impl fmt::Display for DataLine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write_comments(f, &self.comments)?;
         write!(f, "{}.", self.mnemonic)?;

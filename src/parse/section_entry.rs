@@ -1,8 +1,8 @@
-use crate::parse::KeyValueData;
+use crate::parse::DataLine;
 
 #[derive(Debug)]
 pub(crate) enum SectionEntry {
-    Delimited(KeyValueData),
+    Delimited(DataLine),
     Raw {
         text: String,
         comments: Option<Vec<String>>,

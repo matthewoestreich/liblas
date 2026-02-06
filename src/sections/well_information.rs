@@ -1,5 +1,5 @@
 use crate::{
-    KeyValueData, LasValue, ParseError, Section, SectionEntry, SectionKind, any_present, write_comments, write_kv_opt,
+    DataLine, LasValue, ParseError, Section, SectionEntry, SectionKind, any_present, write_comments, write_kv_opt,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -7,45 +7,45 @@ use std::fmt;
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WellInformation {
     #[serde(rename = "STRT")]
-    pub strt: KeyValueData,
+    pub strt: DataLine,
     #[serde(rename = "STOP")]
-    pub stop: KeyValueData,
+    pub stop: DataLine,
     #[serde(rename = "STEP")]
-    pub step: KeyValueData,
+    pub step: DataLine,
     #[serde(rename = "NULL")]
-    pub null: KeyValueData,
+    pub null: DataLine,
 
     #[serde(rename = "COMP")]
-    pub comp: Option<KeyValueData>,
+    pub comp: Option<DataLine>,
     #[serde(rename = "WELL")]
-    pub well: Option<KeyValueData>,
+    pub well: Option<DataLine>,
     #[serde(rename = "FLD")]
-    pub fld: Option<KeyValueData>,
+    pub fld: Option<DataLine>,
     #[serde(rename = "LOC")]
-    pub loc: Option<KeyValueData>,
+    pub loc: Option<DataLine>,
 
     // location variants (one-of)
     #[serde(rename = "PROV")]
-    pub prov: Option<KeyValueData>,
+    pub prov: Option<DataLine>,
     #[serde(rename = "CNTY")]
-    pub cnty: Option<KeyValueData>,
+    pub cnty: Option<DataLine>,
     #[serde(rename = "STAT")]
-    pub stat: Option<KeyValueData>,
+    pub stat: Option<DataLine>,
     #[serde(rename = "CTRY")]
-    pub ctry: Option<KeyValueData>,
+    pub ctry: Option<DataLine>,
 
     #[serde(rename = "SRVC")]
-    pub srvc: Option<KeyValueData>,
+    pub srvc: Option<DataLine>,
     #[serde(rename = "DATE")]
-    pub date: Option<KeyValueData>,
+    pub date: Option<DataLine>,
 
     // identity (one-of)
     #[serde(rename = "UWI")]
-    pub uwi: Option<KeyValueData>,
+    pub uwi: Option<DataLine>,
     #[serde(rename = "API")]
-    pub api: Option<KeyValueData>,
+    pub api: Option<DataLine>,
 
-    pub additional: Vec<KeyValueData>,
+    pub additional: Vec<DataLine>,
     pub comments: Option<Vec<String>>,
 
     pub header: String,
@@ -158,7 +158,7 @@ impl WellInformation {
         Ok(())
     }
 
-    fn require_value(&self, kv: &KeyValueData, name: &str) -> Result<(), ParseError> {
+    fn require_value(&self, kv: &DataLine, name: &str) -> Result<(), ParseError> {
         if kv.value.is_none() {
             Err(ParseError::WellDataMissingRequiredValueForMnemonic {
                 mnemonic: name.to_string(),
@@ -168,7 +168,7 @@ impl WellInformation {
         }
     }
 
-    fn require_numeric(&self, kv: &KeyValueData, name: &str) -> Result<(), ParseError> {
+    fn require_numeric(&self, kv: &DataLine, name: &str) -> Result<(), ParseError> {
         match kv.value {
             Some(LasValue::Int(_)) | Some(LasValue::Float(_)) => Ok(()),
             _ => Err(ParseError::InvalidWellValue {

@@ -3,8 +3,17 @@ use std::{fmt, io};
 use crate::parse::{LasValue, SectionKind};
 
 #[derive(Debug)]
+pub enum InvalidLineKind {
+    Empty,
+    Comment,
+}
+
+#[derive(Debug)]
 pub enum ParseError {
     Io(io::Error),
+    Error {
+        message: String,
+    },
     MissingSection {
         section: SectionKind,
     },
@@ -66,8 +75,9 @@ pub enum ParseError {
         num_cols_in_headers: usize,
         num_cols_in_row: usize,
     },
-    AsciiDataContainsEmptyLine {
+    AsciiDataContainsInvalidLine {
         line_number: usize,
+        line_kind: InvalidLineKind,
     },
     CurvesAndAsciiDataColumnsMismatch {
         num_curves: usize,
@@ -94,6 +104,7 @@ impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ParseError::Io(error) => write!(f, "ParseError::Io({:?})", error),
+            ParseError::Error { message } => write!(f, "ParseError::Error(message: {message})"),
             ParseError::MissingSection { section } => {
                 write!(f, "ParseError::MissingSection({:?})", section)
             }
@@ -195,8 +206,12 @@ impl fmt::Display for ParseError {
                     line_number, num_cols_in_headers, num_cols_in_row
                 )
             }
-            ParseError::AsciiDataContainsEmptyLine { line_number } => {
-                write!(f, "ParseError::AsciiDataContainsEmptyLine(line_number={})", line_number)
+            ParseError::AsciiDataContainsInvalidLine { line_number, line_kind } => {
+                write!(
+                    f,
+                    "ParseError::AsciiDataContainsInvalidLine(line_number={}, line_kind={:?})",
+                    line_number, line_kind
+                )
             }
             ParseError::CurvesAndAsciiDataColumnsMismatch {
                 num_curves,

@@ -1,10 +1,10 @@
-use crate::{KeyValueData, ParseError, Section, SectionEntry, SectionKind, write_comments};
+use crate::{DataLine, ParseError, Section, SectionEntry, SectionKind, write_comments};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CurveInformation {
-    pub curves: Vec<KeyValueData>,
+    pub curves: Vec<DataLine>,
     pub comments: Option<Vec<String>>,
     pub header: String,
     #[serde(skip)]

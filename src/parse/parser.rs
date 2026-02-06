@@ -48,16 +48,28 @@ where
                 LasToken::SectionHeader { name, line_number } => {
                     self.start_section(&mut file, &name, line_number)?;
                 }
-                LasToken::Comment { text, .. } => {
+                LasToken::Comment { text, line_number } => {
+                    // Comments not allowed in ASCII data section.
+                    if let Some(section) = self.current_section.as_ref()
+                        && section.header.kind == SectionKind::AsciiLogData
+                    {
+                        return Err(ParseError::AsciiDataContainsInvalidLine {
+                            line_number,
+                            line_kind: crate::InvalidLineKind::Comment,
+                        });
+                    }
+
                     self.comments.get_or_insert_with(Vec::new).push(text);
                 }
-                // We found a blank line
                 LasToken::Blank { line_number } => {
                     // Blank lines not allowed in ASCII data section.
                     if let Some(section) = self.current_section.as_ref()
                         && section.header.kind == SectionKind::AsciiLogData
                     {
-                        return Err(ParseError::AsciiDataContainsEmptyLine { line_number });
+                        return Err(ParseError::AsciiDataContainsInvalidLine {
+                            line_number,
+                            line_kind: crate::InvalidLineKind::Empty,
+                        });
                     }
                 }
             }
@@ -75,7 +87,16 @@ where
             file.sections.push(section);
         }
 
-        self.validate_curves(&file)?;
+        // We know these should exist here bc of the required sections check
+        let mut file_sects = file.sections.iter();
+        let curves = file_sects
+            .find(|s| s.header.kind == SectionKind::Curve)
+            .expect("curves section to exist");
+        let ascii = file_sects
+            .find(|s| s.header.kind == SectionKind::AsciiLogData)
+            .expect("ascii section to exist");
+
+        self.validate_curves(curves, ascii)?;
 
         Ok(file)
     }
@@ -161,26 +182,15 @@ where
         Ok(())
     }
 
-    fn validate_curves(&self, file: &ParsedLasFile) -> Result<(), ParseError> {
-        use SectionKind as SK;
-        // Validate curves/ascii logs
-        let curves = file.sections.iter().find(|s| s.header.kind == SK::Curve);
-        // We know these should exist here (from code outside of this func) but it is better to play it safe.
-        if curves.is_none() {
-            return Err(ParseError::MissingSection { section: SK::Curve });
-        }
-
-        let ascii_logs = file.sections.iter().find(|s| s.header.kind == SK::AsciiLogData);
-        // We know these should exist here (from code outside of this func) but it is better to play it safe.
-        if ascii_logs.is_none() {
-            return Err(ParseError::MissingSection {
-                section: SK::AsciiLogData,
+    fn validate_curves(&self, curves: &Section, ascii_logs: &Section) -> Result<(), ParseError> {
+        if curves.header.kind != SectionKind::Curve || ascii_logs.header.kind != SectionKind::AsciiLogData {
+            return Err(ParseError::Error {
+                message: format!(
+                    "Expected Curves or AsciiLogData, got {:?} and {:?}",
+                    curves.header.kind, ascii_logs.header.kind
+                ),
             });
         }
-
-        // We know these exist here, safe to call expect
-        let curves = curves.expect("some");
-        let ascii_logs = ascii_logs.expect("some");
 
         // The channels (data-lines) in the curve section must be present in the data set (ascii_log_data).
         // There are some "official" las file examples that don't have the curve mnemonic match
@@ -206,7 +216,7 @@ where
 
         if curves.entries.is_empty() {
             return Err(ParseError::SectionMissingRequiredData {
-                section: SK::Curve,
+                section: SectionKind::Curve,
                 one_of: Vec::from(allowed_first_curves),
             });
         }

@@ -18,7 +18,7 @@ pub(crate) fn any_present<T>(items: &[&Option<T>]) -> bool {
     items.iter().any(|o| o.is_some())
 }
 
-pub(crate) fn write_kv_opt(f: &mut fmt::Formatter<'_>, kv: &Option<KeyValueData>) -> fmt::Result {
+pub(crate) fn write_kv_opt(f: &mut fmt::Formatter<'_>, kv: &Option<DataLine>) -> fmt::Result {
     if let Some(v) = kv {
         writeln!(f, "{v}")?;
     }

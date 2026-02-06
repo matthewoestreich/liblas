@@ -1,6 +1,6 @@
 use crate::{
     ParseError,
-    parse::{KeyValueData, LasFloat, LasValue, SectionEntry, SectionHeader, SectionKind, str_contains},
+    parse::{DataLine, LasFloat, LasValue, SectionEntry, SectionHeader, SectionKind, str_contains},
 };
 
 #[derive(Debug)]
@@ -132,7 +132,7 @@ impl Section {
             description = Some(raw[colon_index + 1..raw.len()].trim().to_string());
         }
 
-        self.entries.push(SectionEntry::Delimited(KeyValueData {
+        self.entries.push(SectionEntry::Delimited(DataLine {
             comments,
             value,
             unit: unit.filter(|u| !u.is_empty()),
