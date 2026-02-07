@@ -1,6 +1,6 @@
-mod builder;
 mod data_line;
 mod float;
+mod parsed_las_file;
 mod parser;
 mod sink;
 mod value;
@@ -9,7 +9,7 @@ pub use data_line::*;
 pub use float::*;
 pub use value::*;
 
-pub(crate) use builder::*;
+pub(crate) use parsed_las_file::*;
 pub(crate) use parser::*;
 pub(crate) use sink::*;
 
@@ -28,11 +28,6 @@ fn str_contains(str: &str, chars: &[char]) -> Vec<char> {
         }
     }
     matches
-}
-
-#[derive(Debug)]
-pub(crate) struct ParsedLasFile {
-    pub sections: Vec<Section>,
 }
 
 // ================================================================================================

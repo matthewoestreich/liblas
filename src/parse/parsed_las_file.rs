@@ -1,27 +1,23 @@
 use crate::{
     ParseError,
-    parse::{LasFloat, ParsedLasFile, Section, SectionEntry, Sink},
+    parse::{LasFloat, Section, SectionEntry, Sink},
 };
 
-pub(crate) struct Builder {
-    file: ParsedLasFile,
+pub(crate) struct ParsedLasFile {
+    pub sections: Vec<Section>,
     current_section: Option<Section>,
 }
 
-impl Builder {
+impl ParsedLasFile {
     pub fn new() -> Self {
         Self {
-            file: ParsedLasFile { sections: vec![] },
+            sections: vec![],
             current_section: None,
         }
     }
-
-    pub fn finish(self) -> ParsedLasFile {
-        self.file
-    }
 }
 
-impl Sink for Builder {
+impl Sink for ParsedLasFile {
     fn start_section(&mut self, section: Section) -> Result<(), ParseError> {
         self.current_section = Some(section);
         Ok(())
@@ -43,7 +39,7 @@ impl Sink for Builder {
 
     fn end_section(&mut self) -> Result<(), ParseError> {
         if let Some(sec) = self.current_section.take() {
-            self.file.sections.push(sec);
+            self.sections.push(sec);
         }
         Ok(())
     }

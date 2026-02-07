@@ -1,6 +1,6 @@
 use crate::{
     ParseError,
-    parse::{Builder, LasParser, ParsedLasFile, SectionKind},
+    parse::{LasParser, ParsedLasFile, SectionKind},
     sections::*,
     tokenizer::LasTokenizer,
 };
@@ -69,10 +69,13 @@ impl LasFile {
     }
 
     pub fn parse(las_file_path: &str) -> Result<Self, ParseError> {
-        let mut parser = LasParser::new(LasTokenizer::new(BufReader::new(File::open(las_file_path)?)));
-        let mut builder = Builder::new();
-        parser.parse_into(&mut builder)?;
-        LasFile::try_from(builder.finish())
+        let file = File::open(las_file_path)?;
+        let reader = BufReader::new(file);
+        let tokenizer = LasTokenizer::new(reader);
+        let mut parser = LasParser::new(tokenizer);
+        let mut sink = ParsedLasFile::new();
+        parser.parse_into(&mut sink)?;
+        LasFile::try_from(sink)
     }
 }
 
