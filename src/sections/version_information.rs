@@ -71,8 +71,6 @@ impl TryFrom<Section> for VersionInformation {
             }
         }
 
-        println!("\n\n\nhas_vers={has_vers} | has_wrap={has_wrap}\n\n\n");
-
         if !has_vers || !has_wrap {
             return Err(ParseError::SectionMissingRequiredData {
                 section: SectionKind::Version,
