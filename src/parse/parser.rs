@@ -73,8 +73,7 @@ where
                     };
 
                     if next_section.header.kind == SectionKind::AsciiLogData {
-                        let headers = self.curve_mnemonics.clone();
-                        next_section.ascii_headers = Some(headers);
+                        next_section.ascii_headers = Some(self.curve_mnemonics.clone());
                     }
 
                     sink.end_section()?;
