@@ -6,12 +6,13 @@ use crate::{
 };
 use std::{
     collections::{HashMap, hash_map::Entry},
+    io,
     iter::Peekable,
 };
 
 pub(crate) struct LasParser<I>
 where
-    I: Iterator<Item = Result<LasToken, std::io::Error>>,
+    I: Iterator<Item = Result<LasToken, io::Error>>,
 {
     tokens: Peekable<I>,
     current_section: Option<SectionKind>,
@@ -23,7 +24,7 @@ where
 
 impl<I> LasParser<I>
 where
-    I: Iterator<Item = Result<LasToken, std::io::Error>>,
+    I: Iterator<Item = Result<LasToken, io::Error>>,
 {
     pub fn new(iter: I) -> Self {
         Self {
@@ -103,7 +104,6 @@ where
                             line_kind: crate::InvalidLineKind::Comment,
                         });
                     }
-
                     self.comments.get_or_insert_with(Vec::new).push(text);
                 }
                 LasToken::Blank { line_number } => {
@@ -143,7 +143,7 @@ where
         }
     }
 
-    pub fn parse_data_line(&mut self, raw: &str, line_number: usize) -> Result<SectionEntry, ParseError> {
+    fn parse_data_line(&mut self, raw: &str, line_number: usize) -> Result<SectionEntry, ParseError> {
         if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
             return self.parse_ascii_data_line(raw, line_number);
         }
