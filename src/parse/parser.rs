@@ -338,8 +338,6 @@ where
         }
 
         // The first data line in the Curve section must be one of "DEPT", "DEPTH", "TIME" or "INDEX".
-        //if let SectionEntry::Delimited(first_curve) = &curves.entries[0]
-        //    && !allowed_first_curves.contains(&first_curve.mnemonic.to_uppercase().to_string())
         if !allowed_first_curves.contains(&self.curve_mnemonics[0]) {
             return Err(ParseError::DisallowedFirstCurve {
                 got: self.curve_mnemonics[0].clone(),
