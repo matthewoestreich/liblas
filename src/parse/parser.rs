@@ -18,7 +18,6 @@ where
     state: ParserState,
     parsed_sections: HashMap<SectionKind, usize>,
     curve_mnemonics: Vec<String>,
-    first_ascii_column: Option<String>,
     comments: Option<Vec<String>>,
 }
 
@@ -33,7 +32,6 @@ where
             state: ParserState::Start,
             parsed_sections: HashMap::new(),
             curve_mnemonics: vec![],
-            first_ascii_column: None,
             comments: None,
         }
     }
@@ -76,7 +74,6 @@ where
 
                     if next_section.header.kind == SectionKind::AsciiLogData {
                         let headers = self.curve_mnemonics.clone();
-                        self.first_ascii_column = Some(headers[0].clone());
                         next_section.ascii_headers = Some(headers);
                     }
 
@@ -137,75 +134,6 @@ where
         Ok(())
     }
 
-    /*
-    pub fn parse(&mut self) -> Result<ParsedLasFile, ParseError> {
-        let mut file = ParsedLasFile { sections: vec![] };
-
-        // A token is equivalent to a line within the original las file.
-        while let Some(token) = self.next_token()? {
-            match token {
-                LasToken::DataLine { raw, line_number } => {
-                    if let Some(section) = self.current_section.as_mut() {
-                        //section.parse_line(&raw, line_number, self.comments.take())?;
-                    }
-                }
-                LasToken::SectionHeader { name, line_number } => {
-                    self.start_section(&mut file, &name, line_number)?;
-                }
-                LasToken::Comment { text, line_number } => {
-                    // Comments not allowed in ASCII data section.
-                    if let Some(section) = self.current_section.as_ref()
-                        && section.header.kind == SectionKind::AsciiLogData
-                    {
-                        return Err(ParseError::AsciiDataContainsInvalidLine {
-                            line_number,
-                            line_kind: crate::InvalidLineKind::Comment,
-                        });
-                    }
-
-                    self.comments.get_or_insert_with(Vec::new).push(text);
-                }
-                LasToken::Blank { line_number } => {
-                    // Blank lines not allowed in ASCII data section.
-                    if let Some(section) = self.current_section.as_ref()
-                        && section.header.kind == SectionKind::AsciiLogData
-                    {
-                        return Err(ParseError::AsciiDataContainsInvalidLine {
-                            line_number,
-                            line_kind: crate::InvalidLineKind::Empty,
-                        });
-                    }
-                }
-            }
-        }
-
-        for required_section in REQUIRED_SECTIONS.iter() {
-            if !self.parsed_sections.contains_key(required_section) {
-                return Err(ParseError::MissingSection {
-                    section: *required_section,
-                });
-            }
-        }
-
-        if let Some(section) = self.current_section.take() {
-            file.sections.push(section);
-        }
-
-        // We know these should exist here bc of the required sections check
-        let mut file_sects = file.sections.iter();
-        let curves = file_sects
-            .find(|s| s.header.kind == SectionKind::Curve)
-            .expect("curves section to exist");
-        let ascii = file_sects
-            .find(|s| s.header.kind == SectionKind::AsciiLogData)
-            .expect("ascii section to exist");
-
-        self.validate_curves(curves, ascii)?;
-
-        Ok(file)
-    }
-    */
-
     fn next_token(&mut self) -> Result<Option<LasToken>, ParseError> {
         match self.tokens.next() {
             Some(Ok(tok)) => Ok(Some(tok)),
@@ -213,54 +141,6 @@ where
             None => Ok(None),
         }
     }
-
-    /*
-    fn start_section(&mut self, file: &mut ParsedLasFile, name: &str, line_number: usize) -> Result<(), ParseError> {
-        let mut next_section = Section::new(name.to_string(), line_number);
-        let kind = next_section.header.kind;
-
-        next_section.comments = self.comments.take();
-
-        // Version information section must be first!
-        if self.state == ParserState::Start && kind != SectionKind::Version {
-            return Err(ParseError::VersionInformationNotFirst { line_number });
-        }
-
-        // ASCII log data section must be last
-        if self.state == ParserState::End && kind != SectionKind::AsciiLogData {
-            return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
-        }
-
-        // If we have a parsed section already, add it to file.
-        if let Some(curr_sect) = self.current_section.take() {
-            file.sections.push(curr_sect);
-        }
-
-        self.state = match kind {
-            SectionKind::AsciiLogData => ParserState::End,
-            _ => ParserState::Working,
-        };
-
-        // Check for duplicate section.
-        match self.parsed_sections.entry(kind) {
-            Entry::Occupied(e) => {
-                return Err(ParseError::DuplicateSection {
-                    section: kind,
-                    line_number,
-                    duplicate_line_number: *e.get(),
-                });
-            }
-            Entry::Vacant(e) => e.insert(line_number),
-        };
-
-        if kind == SectionKind::AsciiLogData {
-            //self.set_ascii_headers_from_curve_section(file, &mut next_section)?;
-        }
-
-        self.current_section = Some(next_section);
-        Ok(())
-    }
-    */
 
     pub fn parse_data_line(&mut self, raw: &str, line_number: usize) -> Result<SectionEntry, ParseError> {
         if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
