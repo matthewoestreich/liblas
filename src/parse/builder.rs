@@ -29,12 +29,8 @@ impl Sink for Builder {
 
     fn entry(&mut self, entry: SectionEntry) -> Result<(), ParseError> {
         if let Some(sec) = self.current_section.as_mut() {
-            println!("pushing entry :\n\t{entry:?}\ninto section: {:?}\n", sec.header.kind);
             sec.entries.push(entry);
-        } else {
-            println!("got entry but no current sectiono! {entry:?}");
         }
-
         Ok(())
     }
 
