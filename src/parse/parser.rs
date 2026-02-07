@@ -45,26 +45,28 @@ where
                 LasToken::SectionHeader { name, line_number } => {
                     let mut next_section = Section::new(name.to_string(), line_number);
                     next_section.comments = self.comments.take();
+                    let next_section_kind = next_section.header.kind;
 
                     // Version information section must be first!
-                    if self.state == ParserState::Start && next_section.header.kind != SectionKind::Version {
+                    if self.state == ParserState::Start && next_section_kind != SectionKind::Version {
                         return Err(ParseError::VersionInformationNotFirst { line_number });
                     }
+
                     // ASCII log data section must be last
-                    if self.state == ParserState::End && next_section.header.kind != SectionKind::AsciiLogData {
+                    if self.state == ParserState::End && next_section_kind != SectionKind::AsciiLogData {
                         return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
                     }
 
-                    self.state = match next_section.header.kind {
+                    self.state = match next_section_kind {
                         SectionKind::AsciiLogData => ParserState::End,
                         _ => ParserState::Working,
                     };
 
                     // Check for duplicate section.
-                    match self.parsed_sections.entry(next_section.header.kind) {
+                    match self.parsed_sections.entry(next_section_kind) {
                         Entry::Occupied(e) => {
                             return Err(ParseError::DuplicateSection {
-                                section: next_section.header.kind,
+                                section: next_section_kind,
                                 line_number,
                                 duplicate_line_number: *e.get(),
                             });
@@ -72,13 +74,13 @@ where
                         Entry::Vacant(e) => e.insert(line_number),
                     };
 
-                    if next_section.header.kind == SectionKind::AsciiLogData {
+                    if next_section_kind == SectionKind::AsciiLogData {
                         next_section.ascii_headers = Some(self.curve_mnemonics.clone());
                     }
 
                     sink.end_section()?;
-                    self.current_section = Some(next_section.header.kind);
                     sink.start_section(next_section)?;
+                    self.current_section = Some(next_section_kind);
                 }
                 LasToken::DataLine { raw, line_number } => {
                     let entry = self.parse_data_line(&raw, line_number)?;
