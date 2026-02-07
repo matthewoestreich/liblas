@@ -1,6 +1,6 @@
 use crate::{
     ParseError,
-    parse::{LasParser, ParsedLasFile, SectionKind},
+    parse::{JsonSink, LasParser, ParsedLasFile, SectionKind},
     sections::*,
     tokenizer::LasTokenizer,
 };
@@ -66,6 +66,21 @@ impl LasFile {
 
     pub fn to_las_str(&mut self) -> String {
         self.to_string()
+    }
+
+    pub fn parse_to_stdout(las_file_path: &str) -> Result<(), ParseError> {
+        let file = File::open(las_file_path)?;
+        let reader = BufReader::new(file);
+
+        // Create a streaming JSON sink that writes to stdout
+        let stdout = std::io::stdout();
+        let handle = stdout.lock();
+        let mut sink = JsonSink::new(handle);
+
+        let tokenizer = LasTokenizer::new(reader);
+        let mut parser = LasParser::new(tokenizer);
+        parser.parse_into(&mut sink)?;
+        Ok(())
     }
 
     pub fn parse(las_file_path: &str) -> Result<Self, ParseError> {

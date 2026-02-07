@@ -1,5 +1,6 @@
 mod data_line;
 mod float;
+mod json_sink;
 mod parsed_las_file;
 mod parser;
 mod sink;
@@ -7,8 +8,10 @@ mod value;
 
 pub use data_line::*;
 pub use float::*;
+use serde::Serialize;
 pub use value::*;
 
+pub(crate) use json_sink::*;
 pub(crate) use parsed_las_file::*;
 pub(crate) use parser::*;
 pub(crate) use sink::*;
@@ -46,7 +49,7 @@ enum ParserState {
 // ------------------------ Section ---------------------------------------------------------------
 // ================================================================================================
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 #[allow(dead_code)]
 pub(crate) struct Section {
     pub header: SectionHeader,
@@ -77,7 +80,7 @@ impl Section {
 // ------------------------ SectionEntry ----------------------------------------------------------
 // ================================================================================================
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) enum SectionEntry {
     Delimited(DataLine),
     AsciiLogData(Vec<LasFloat>),
@@ -91,7 +94,7 @@ pub(crate) enum SectionEntry {
 // ------------------------ SectionHeader ---------------------------------------------------------
 // ================================================================================================
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 #[allow(dead_code)]
 pub(crate) struct SectionHeader {
     pub raw: String,
@@ -109,7 +112,7 @@ impl SectionHeader {
 // ------------------------ SectionKind -----------------------------------------------------------
 // ================================================================================================
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum SectionKind {
     Version,
     Well,

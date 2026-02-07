@@ -23,9 +23,14 @@ fn test_parsed_file_to_las_file() {
 
 #[test]
 fn test_good_sample() {
-    println!("ldafk;alk");
     let file_path = "las_files/_good_sample_1.las";
     let _parsed = LasFile::parse(file_path).unwrap();
+}
+
+#[test]
+fn test_good_sample_stream() {
+    let file_path = "las_files/_good_sample_1.las";
+    LasFile::parse_to_stdout(file_path).unwrap();
 }
 
 #[test]
