@@ -2,6 +2,7 @@
 sample_las_files
 rustc-ice*.*
 exported_las/
+copy_to_clipboard.sh
 
 # Compiled artifacts
 /target/

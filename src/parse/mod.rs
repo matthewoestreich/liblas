@@ -1,21 +1,19 @@
+mod builder;
 mod data_line;
 mod float;
 mod parser;
 mod section;
-mod section_entry;
-mod section_header;
-mod section_kind;
+mod sink;
 mod value;
 
 pub use data_line::*;
 pub use float::*;
 pub use value::*;
 
+pub(crate) use builder::*;
 pub(crate) use parser::*;
 pub(crate) use section::*;
-pub(crate) use section_entry::*;
-pub(crate) use section_header::*;
-pub(crate) use section_kind::*;
+pub(crate) use sink::*;
 
 const REQUIRED_SECTIONS: [SectionKind; 4] = [
     SectionKind::Version,

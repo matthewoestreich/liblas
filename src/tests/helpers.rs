@@ -1,18 +1,10 @@
 use plotters::style::full_palette::BLUE_A700;
 
 use super::*;
-use std::{fs::File, io::BufReader, ops::Range, path::PathBuf};
+use std::ops::Range;
 
-pub(crate) fn open_file(file_path: &str) -> BufReader<File> {
-    let file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(file_path);
-    let file = File::open(file_path).expect("open file error");
-    BufReader::new(file)
-}
-
-pub(crate) fn parse_las_file(reader: BufReader<File>) -> Result<ParsedLasFile, ParseError> {
-    let las_tokenizer = tokenizer::LasTokenizer::new(reader);
-    let mut las_parser = parse::LasParser::new(las_tokenizer);
-    las_parser.parse()
+pub(crate) fn parse_las_file(path: &str) -> Result<LasFile, ParseError> {
+    LasFile::parse(path)
 }
 
 pub(crate) fn depths(las: &LasFile) -> Vec<f64> {
