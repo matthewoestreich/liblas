@@ -108,6 +108,8 @@ where
                         for comment in comments {
                             writeln!(self.writer, "  - {comment}")?;
                         }
+                    } else {
+                        writeln!(self.writer, "  comments: null")?;
                     }
                     writeln!(self.writer, "  header: ~{}", section.header.raw)?;
                 }
