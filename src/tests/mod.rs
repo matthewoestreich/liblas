@@ -34,27 +34,6 @@ fn test_good_sample() {
 }
 
 #[test]
-fn test_good_sample_stream() {
-    let file_name = "_good_sample_1.las";
-    let file_path = format!("las_files/{}", file_name);
-    let file = File::open(file_path).unwrap();
-    let reader = BufReader::new(file);
-
-    let out_path = format!("exported_las/{}.json", file_name);
-    let out_file = File::create(out_path).unwrap();
-    let writer = std::io::BufWriter::new(out_file);
-    let mut sink = JsonSink::new(writer);
-
-    //let stdout = std::io::stdout();
-    //let handle = stdout.lock();
-    //let mut sink = JsonSink::new(handle);
-
-    let tokenizer = LasTokenizer::new(reader);
-    let mut parser = LasParser::new(tokenizer);
-    parser.parse_into(&mut sink).unwrap();
-}
-
-#[test]
 #[should_panic]
 fn test_num_curves_not_equal_num_ascii_logs() {
     let file_path = "las_files/num_curves_not_equal_num_ascii_logs.las";
@@ -116,4 +95,27 @@ fn test_plotting() {
     let output_plot_png = &format!("./plots/{file_name}.png");
     let las_file = parse_las_file(file_path).unwrap();
     plot_las(&las_file, output_plot_png, 5).expect("plot");
+}
+
+#[test]
+#[ignore]
+// run with 'cargo nextest run test_good_sample_stream --lib --nocapture --run-ignored=only'
+fn test_good_sample_stream() {
+    let file_name = "_good_sample_1.las";
+    let file_path = format!("las_files/{}", file_name);
+    let file = File::open(file_path).unwrap();
+    let reader = BufReader::new(file);
+
+    let out_path = format!("exported_las/{}.json", file_name);
+    let out_file = File::create(out_path).unwrap();
+    let writer = std::io::BufWriter::new(out_file);
+    let mut sink = JsonSink::new(writer);
+
+    //let stdout = std::io::stdout();
+    //let handle = stdout.lock();
+    //let mut sink = JsonSink::new(handle);
+
+    let tokenizer = LasTokenizer::new(reader);
+    let mut parser = LasParser::new(tokenizer);
+    parser.parse_into(&mut sink).unwrap();
 }
