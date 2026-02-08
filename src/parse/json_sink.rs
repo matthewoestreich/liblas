@@ -30,7 +30,7 @@ impl<W: Write> JsonSink<W> {
     where
         T: Serialize,
     {
-        write!(self.writer, "\"{}\":", section_name)?;
+        write!(self.writer, "\"{section_name}\":")?;
         serde_json::to_writer(&mut self.writer, section).map_err(|e| ParseError::Error { message: e.to_string() })?;
         Ok(())
     }
