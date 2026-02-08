@@ -18,7 +18,7 @@ const _NO_FIRST_SPACE_AFTER_FIRST_DOT: &str = "las_files/no_first_space_after_fi
 // `cargo run -- --las las_files/big.las --out exported_las/big.yaml --out-type yaml --force`
 
 // To export as JSON run:
-// `cargo run -- --las las_files/_good_sample_1.las --out exported_las/gooddd.json --out-type json --force`
+// `cargo run -- --las las_files/_good_sample_1.las --out exported_las/__good_sample_1.las__cli.json --out-type json --force`
 // `cargo run -- --las las_files/big.las --out exported_las/big.json --out-type json --force`
 
 #[test]
@@ -78,6 +78,26 @@ fn test_json_deserialization() {
 }
 
 #[test]
+#[ignore]
+// run with 'cargo nextest run test_export_good_yaml --lib --nocapture --run-ignored=only'
+fn test_export_good_yaml() {
+    let file_name = "_good_sample_1.las";
+    let las_file_path = format!("las_files/{}", file_name);
+    let mut las_file = LasFile::parse(&las_file_path).unwrap();
+    println!("{}", las_file.to_yaml_str().unwrap());
+}
+
+#[test]
+#[ignore]
+// run with 'cargo nextest run test_export_good_json --lib --nocapture --run-ignored=only'
+fn test_export_good_json() {
+    let file_name = "_good_sample_1.las";
+    let las_file_path = format!("las_files/{}", file_name);
+    let mut las_file = LasFile::parse(&las_file_path).unwrap();
+    println!("{}", las_file.to_json_str().unwrap());
+}
+
+#[test]
 #[ignore = "for displaying raw las"]
 // run with 'cargo nextest run test_to_las_str --lib --nocapture --run-ignored=only'
 fn test_to_las_str() {
@@ -99,8 +119,8 @@ fn test_plotting() {
 
 #[test]
 #[ignore]
-// run with 'cargo nextest run test_good_sample_stream --lib --nocapture --run-ignored=only'
-fn test_good_sample_stream() {
+// run with 'cargo nextest run test_good_sample_stream_json --lib --nocapture --run-ignored=only'
+fn test_good_sample_stream_json() {
     let file_name = "_good_sample_1.las";
     let file_path = format!("las_files/{}", file_name);
     let file = File::open(file_path).unwrap();
@@ -110,6 +130,29 @@ fn test_good_sample_stream() {
     let out_file = File::create(out_path).unwrap();
     let writer = std::io::BufWriter::new(out_file);
     let mut sink = JsonSink::new(writer);
+
+    //let stdout = std::io::stdout();
+    //let handle = stdout.lock();
+    //let mut sink = JsonSink::new(handle);
+
+    let tokenizer = LasTokenizer::new(reader);
+    let mut parser = LasParser::new(tokenizer);
+    parser.parse_into(&mut sink).unwrap();
+}
+
+#[test]
+#[ignore]
+// run with 'cargo nextest run test_good_sample_stream_yaml --lib --nocapture --run-ignored=only'
+fn test_good_sample_stream_yaml() {
+    let file_name = "_good_sample_1.las";
+    let file_path = format!("las_files/{}", file_name);
+    let file = File::open(file_path).unwrap();
+    let reader = BufReader::new(file);
+
+    let out_path = format!("exported_las/{}.yaml", file_name);
+    let out_file = File::create(out_path).unwrap();
+    let writer = std::io::BufWriter::new(out_file);
+    let mut sink = YamlSink::new(writer);
 
     //let stdout = std::io::stdout();
     //let handle = stdout.lock();

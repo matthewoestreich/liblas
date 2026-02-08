@@ -2,6 +2,7 @@
 ~VERSION INFORMATION
 VERS. 2.0 : CWLS LOG ASCII STANDARD -VERSION 2.0
 WRAP. NO : ONE LINE PER DEPTH STEP
+CREA.   02-08-2006               :LAS File Creation Date (MM-DD-YYYY)
 ~WELL INFORMATION
 #MNEM.UNIT DATA DESCRIPTION
 #----- ----- ---------- -----------------
@@ -46,7 +47,8 @@ Note: The logging tools became stuck at 625 metres causing the
 # Second comment in other 
 # Second line in second comment in other
 data between 625 metres and 615 metres to be invalid.
-#
+# First comment above ~A 
+# Second comment above ~A
 ~A DEPTH DT RHOB NPHI SFLU SFLA ILM ILD
 1670.000 123.450 2550.000 0.450 123.450 123.450 110.200 05.600
 1669.875 123.450 2550.000 0.450 123.450 123.450 110.200 05.600

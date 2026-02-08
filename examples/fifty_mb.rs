@@ -12,7 +12,7 @@ fn main() {
     let file_path = format!("las_files/{}", file_name);
     let out_path = format!("exported_las/___{}.json", file_name);
     let start = Instant::now();
-    LasFile::parse_into_json(&file_path, &out_path).unwrap();
+    LasFile::parse_into_json_file(&file_path, &out_path).unwrap();
     let elapsed = start.elapsed();
     println!("parsed and wrote {file_name} in {elapsed:?}");
 }

@@ -5,6 +5,7 @@ mod parsed_las_file;
 mod parser;
 mod sink;
 mod value;
+mod yaml_sink;
 
 pub use data_line::*;
 pub use float::*;
@@ -15,6 +16,7 @@ pub(crate) use json_sink::*;
 pub(crate) use parsed_las_file::*;
 pub(crate) use parser::*;
 pub(crate) use sink::*;
+pub(crate) use yaml_sink::*;
 
 const REQUIRED_SECTIONS: [SectionKind; 4] = [
     SectionKind::Version,

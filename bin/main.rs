@@ -3,7 +3,6 @@ use core::fmt;
 use liblas::LasFile;
 use std::{
     fs::{OpenOptions, create_dir_all},
-    io::Write,
     path::PathBuf,
     process::exit,
 };
@@ -57,41 +56,24 @@ fn create_file_path(path: PathBuf) {
 
 fn main() {
     let args = Args::parse();
+
+    // In `--las` if we were given a path that doesn't end in `.las`
     if !args.las.ends_with(".las") {
         println!("Error : '--las' path '{}' must be to a .las file!", args.las);
         exit(1);
     }
-
+    // If JSON export type but out path doesn't end in json
     if args.out_type == ExportType::Json && !args.out.ends_with(".json") {
         println!("Error : '--out' path '{}' must be to a .json file!", args.out);
         exit(1);
     }
-
+    // If YAML or YML export type but path doesn't end in YAML or YML
     if (args.out_type == ExportType::Yaml || args.out_type == ExportType::Yml)
         && (!args.out.ends_with(".yaml") && !args.out.ends_with(".yml"))
     {
         println!("Error : '--out' path '{}' must be to a .yaml or .yml file!", args.out);
         exit(1);
     }
-
-    let mut las = LasFile::parse(args.las.as_str()).unwrap_or_else(|e| {
-        println!("Error parsing las file! : {e:?}");
-        exit(1);
-    });
-
-    let serialized = match args.out_type {
-        ExportType::Json => las.to_json_str().unwrap_or_else(|e| {
-            println!("Error converting .las file to .json : {e:?}");
-            exit(1);
-        }),
-        ExportType::Yaml | ExportType::Yml => las.to_yaml_str().unwrap_or_else(|e| {
-            println!(
-                "Error converting .las file to .{} : {e:?}",
-                args.out_type.to_string().to_lowercase()
-            );
-            exit(1);
-        }),
-    };
 
     let mut file_options = OpenOptions::new();
     file_options.write(true);
@@ -104,15 +86,31 @@ fn main() {
         file_options.create_new(true); // Only create if it is a new file
     }
 
-    let mut file = file_options.open(&args.out).unwrap_or_else(|e| {
+    let file = file_options.open(&args.out).unwrap_or_else(|e| {
         println!("Error creating or opening '--out' file : {e}\nYou may need to use the '--force' switch to:\n - Create non-existent directory (or directories) within '--out' path\n - Overwrite existing .json file specified in '--out' path");
         exit(1);
     });
 
-    file.write_all(serialized.as_bytes()).unwrap_or_else(|e| {
-        println!("Error writing to '--out' file : {e}");
-        exit(1);
-    });
+    match args.out_type {
+        ExportType::Json => {
+            LasFile::parse_into_json_writer(&args.las, file).map_err(|e| {
+                println!(
+                    "Error converting .las file to .{} : {e:?}",
+                    args.out_type.to_string().to_lowercase()
+                );
+                exit(1);
+            });
+        }
+        ExportType::Yaml | ExportType::Yml => {
+            LasFile::parse_into_yaml_writer(&args.las, file).map_err(|e| {
+                println!(
+                    "Error converting .las file to .{} : {e:?}",
+                    args.out_type.to_string().to_lowercase()
+                );
+                exit(1);
+            });
+        }
+    }
 
     println!("Success! Exported '{}' file to '{}'", args.out_type, args.out);
 }

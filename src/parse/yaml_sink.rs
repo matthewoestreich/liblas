@@ -9,16 +9,15 @@ use std::io::Write;
 // We store every section outside of AsciiLogData within the 'current_section'.
 // Those sections are very small in comparison to ascii data. We directly stream
 // and write the ascii data to the writer, no allocations or buffering.
-pub struct JsonSink<W>
+pub struct YamlSink<W>
 where
     W: Write,
 {
     writer: W,
     current_section: Option<Section>,
-    is_first_ascii_row: bool,
 }
 
-impl<W> JsonSink<W>
+impl<W> YamlSink<W>
 where
     W: Write,
 {
@@ -26,7 +25,6 @@ where
         Self {
             writer,
             current_section: None,
-            is_first_ascii_row: true,
         }
     }
 
@@ -34,32 +32,34 @@ where
     where
         T: Serialize,
     {
-        write!(self.writer, "\"{section_name}\":")?;
-        serde_json::to_writer(&mut self.writer, section).map_err(|e| ParseError::Error { message: e.to_string() })?;
+        writeln!(self.writer, "{section_name}:")?;
+
+        let mut buf = Vec::new();
+        serde_yaml_ng::to_writer(&mut buf, section).map_err(|e| ParseError::Error { message: e.to_string() })?;
+
+        let s = String::from_utf8(buf).map_err(|e| ParseError::Error { message: e.to_string() })?;
+        for line in s.lines() {
+            writeln!(self.writer, "  {line}")?;
+        }
+
         Ok(())
     }
 }
 
-impl<W> Sink for JsonSink<W>
+impl<W> Sink for YamlSink<W>
 where
     W: Write,
 {
-    fn start(&mut self) -> Result<(), ParseError> {
-        write!(&mut self.writer, "{{")?;
-        Ok(())
-    }
-
-    fn end(&mut self) -> Result<(), ParseError> {
-        write!(self.writer, "}}}}")?;
-        Ok(())
-    }
-
     fn section_start(&mut self, section: Section) -> Result<(), ParseError> {
         if section.header.kind == SectionKind::AsciiLogData {
-            write!(self.writer, "\"AsciiLogData\":{{\"headers\":")?;
-            serde_json::to_writer(&mut self.writer, &section.ascii_headers)
-                .map_err(|e| ParseError::Error { message: e.to_string() })?;
-            write!(self.writer, ",\"rows\":[")?;
+            writeln!(self.writer, "AsciiLogData:")?;
+            if let Some(ascii_headers) = section.ascii_headers.as_ref() {
+                writeln!(self.writer, "  headers:")?;
+                for header in ascii_headers {
+                    writeln!(self.writer, "  - {header}")?;
+                }
+                writeln!(self.writer, "  rows:")?;
+            }
         }
         self.current_section = Some(section);
         Ok(())
@@ -73,11 +73,18 @@ where
     }
 
     fn ascii_row(&mut self, row: &[LasFloat]) -> Result<(), ParseError> {
-        if !self.is_first_ascii_row {
-            write!(self.writer, ",")?;
+        if row.is_empty() {
+            return Err(ParseError::Error {
+                message:
+                    "[yaml_sink] Encountered empty ascii row! THIS SHOULD NEVER HAPPEN, PARSER SHOULD CATCH THIS FIRST!"
+                        .to_string(),
+            });
         }
-        self.is_first_ascii_row = false;
-        serde_json::to_writer(&mut self.writer, row).map_err(|e| ParseError::Error { message: e.to_string() })?;
+
+        writeln!(self.writer, "  - - '{}'", row[0].raw)?;
+        for row in row[1..].iter() {
+            writeln!(self.writer, "    - '{}'", row.raw)?;
+        }
         Ok(())
     }
 
@@ -86,28 +93,25 @@ where
             let kind = section.header.kind;
 
             match kind {
-                SectionKind::AsciiLogData => {
-                    write!(self.writer, "],\"comments\":")?;
-                    serde_json::to_writer(&mut self.writer, &section.comments)
-                        .map_err(|e| ParseError::Error { message: e.to_string() })?;
-                    write!(self.writer, ",\"header\":\"~{}\"", section.header.raw)?;
-                }
                 SectionKind::Well => self.write_section("WellInformation", &WellInformation::try_from(section)?)?,
                 SectionKind::Curve => self.write_section("CurveInformation", &CurveInformation::try_from(section)?)?,
                 SectionKind::Other => self.write_section("OtherInformation", &OtherInformation::try_from(section)?)?,
                 SectionKind::Version => {
-                    self.write_section("VersionInformation", &VersionInformation::try_from(section)?)?
+                    self.write_section("VersionInformation", &VersionInformation::try_from(section)?)?;
                 }
                 SectionKind::Parameter => {
                     self.write_section("ParameterInformation", &ParameterInformation::try_from(section)?)?
                 }
+                SectionKind::AsciiLogData => {
+                    if let Some(comments) = section.comments.as_ref() {
+                        writeln!(self.writer, "  comments:")?;
+                        for comment in comments {
+                            writeln!(self.writer, "  - {comment}")?;
+                        }
+                    }
+                    writeln!(self.writer, "  header: ~{}", section.header.raw)?;
+                }
             };
-
-            // AsciiLogData is expected to be the last section in a .las file.
-            // That is how we can get away with making these assumptions.
-            if kind != SectionKind::AsciiLogData {
-                write!(self.writer, ",")?;
-            }
         }
 
         Ok(())
