@@ -1,5 +1,9 @@
 mod helpers;
 
+use std::{fs::File, io::BufReader};
+
+use crate::tokenizer::LasTokenizer;
+
 use super::*;
 use helpers::*;
 use plotters::prelude::*;
@@ -11,9 +15,11 @@ const _NO_FIRST_SPACE_AFTER_FIRST_DOT: &str = "las_files/no_first_space_after_fi
 
 // To export as YAML run:
 // `cargo run -- --las las_files/_good_sample_1.las --out exported_las/gooddd.yaml --out-type yaml --force`
+// `cargo run -- --las las_files/big.las --out exported_las/big.yaml --out-type yaml --force`
 
 // To export as JSON run:
 // `cargo run -- --las las_files/_good_sample_1.las --out exported_las/gooddd.json --out-type json --force`
+// `cargo run -- --las las_files/big.las --out exported_las/big.json --out-type json --force`
 
 #[test]
 fn test_parsed_file_to_las_file() {
@@ -29,8 +35,23 @@ fn test_good_sample() {
 
 #[test]
 fn test_good_sample_stream() {
-    let file_path = "las_files/_good_sample_1.las";
-    LasFile::parse_to_stdout(file_path).unwrap();
+    let file_name = "_good_sample_1.las";
+    let file_path = format!("las_files/{}", file_name);
+    let file = File::open(file_path).unwrap();
+    let reader = BufReader::new(file);
+
+    let out_path = format!("exported_las/{}.json", file_name);
+    let out_file = File::create(out_path).unwrap();
+    let writer = std::io::BufWriter::new(out_file);
+    let mut sink = JsonSink::new(writer);
+
+    //let stdout = std::io::stdout();
+    //let handle = stdout.lock();
+    //let mut sink = JsonSink::new(handle);
+
+    let tokenizer = LasTokenizer::new(reader);
+    let mut parser = LasParser::new(tokenizer);
+    parser.parse_into(&mut sink).unwrap();
 }
 
 #[test]

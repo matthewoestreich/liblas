@@ -5,7 +5,11 @@ use crate::{
     tokenizer::LasTokenizer,
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, fs::File, io::BufReader};
+use std::{
+    fmt,
+    fs::File,
+    io::{BufReader, BufWriter},
+};
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LasFile {
@@ -68,11 +72,26 @@ impl LasFile {
         self.to_string()
     }
 
-    pub fn parse_to_stdout(las_file_path: &str) -> Result<(), ParseError> {
+    /// Streams from parser into out file.
+    pub fn parse_into_json(las_file_path: &str, into_file_path: &str) -> Result<(), ParseError> {
         let file = File::open(las_file_path)?;
         let reader = BufReader::new(file);
 
-        // Create a streaming JSON sink that writes to stdout
+        let out_file = File::create(into_file_path)?;
+        let writer = BufWriter::new(out_file);
+        let mut sink = JsonSink::new(writer);
+
+        let tokenizer = LasTokenizer::new(reader);
+        let mut parser = LasParser::new(tokenizer);
+        parser.parse_into(&mut sink)?;
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn parse_to_stdout(las_file_path: &str) -> Result<(), ParseError> {
+        let file = File::open(las_file_path)?;
+        let reader = BufReader::new(file);
+
         let stdout = std::io::stdout();
         let handle = stdout.lock();
         let mut sink = JsonSink::new(handle);
@@ -86,10 +105,13 @@ impl LasFile {
     pub fn parse(las_file_path: &str) -> Result<Self, ParseError> {
         let file = File::open(las_file_path)?;
         let reader = BufReader::new(file);
+
+        let mut sink = ParsedLasFile::new();
+
         let tokenizer = LasTokenizer::new(reader);
         let mut parser = LasParser::new(tokenizer);
-        let mut sink = ParsedLasFile::new();
         parser.parse_into(&mut sink)?;
+
         LasFile::try_from(sink)
     }
 }

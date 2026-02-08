@@ -1,111 +1,108 @@
+use std::io::Write;
+
 use crate::{
     ParseError,
     parse::{LasFloat, Section, SectionEntry, SectionKind, Sink},
+    sections::{CurveInformation, OtherInformation, ParameterInformation, VersionInformation, WellInformation},
 };
-use serde::{Serialize, ser::Serializer as SeSerializer};
-use serde_json::{Serializer, ser::PrettyFormatter};
-use std::io::Write;
 
-/// Streaming JSON sink for LAS files.
+// We store every section outside of AsciiLogData within the 'current_section'.
+// Those sections are very small in comparison to ascii data. We directly stream
+// and write the ascii data to the writer, no allocations or buffering.
 pub struct JsonSink<W: Write> {
     writer: W,
-    //serializer: Serializer<W, PrettyFormatter<'static>>,
-    current_ascii_headers: Option<Vec<String>>,
-    in_ascii_section: bool,
+    current_section: Option<Section>,
+    is_first_ascii_row: bool,
 }
 
 impl<W: Write> JsonSink<W> {
     pub fn new(writer: W) -> Self {
-        Self {
+        let mut this = Self {
             writer,
-            //serializer: Serializer::pretty(writer),
-            current_ascii_headers: None,
-            in_ascii_section: false,
-        }
+            current_section: None,
+            is_first_ascii_row: true,
+        };
+        write!(&mut this.writer, "{{").expect("no error");
+        this
     }
 }
 
 impl<W: Write> Sink for JsonSink<W> {
     fn start_section(&mut self, section: Section) -> Result<(), ParseError> {
-        serde_json::to_writer_pretty(&mut self.writer, &section)
-            .map_err(|e| ParseError::Error { message: e.to_string() })?;
-        /*
-        // If the previous section was ASCII, end the rows array
-        if self.in_ascii_section {
-            // Close ASCII rows array
-            self.in_ascii_section = false;
+        if section.header.kind == SectionKind::AsciiLogData {
+            writeln!(self.writer, "  \"AsciiLogData\": {{ ")?;
+            writeln!(self.writer, "    \"headers\": ")?;
+            serde_json::to_writer_pretty(&mut self.writer, &section.ascii_headers)
+                .map_err(|e| ParseError::Error { message: e.to_string() })?;
+            writeln!(self.writer, ",")?;
+            writeln!(self.writer, "\"rows\": [")?;
         }
-
-        match section.header.kind {
-            SectionKind::AsciiLogData => {
-                self.current_ascii_headers = Some(
-                    section
-                        .entries
-                        .iter()
-                        .filter_map(|e| {
-                            if let SectionEntry::Delimited(d) = e {
-                                Some(d.mnemonic.clone())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect(),
-                );
-                self.in_ascii_section = true;
-
-                // Serialize ASCII section with headers
-                let ascii_start = serde_json::json!({
-                    "headers": self.current_ascii_headers.as_ref().unwrap(),
-                    "rows": [],
-                    "comments": section.comments,
-                    "header": section.header.raw.clone()
-                });
-                serde_json::to_writer_pretty(&mut self.writer, &ascii_start)
-                    .map_err(|e| ParseError::Error { message: e.to_string() })?;
-                //serde_json::to_writer(&mut self.serializer.get_mut(), &ascii_start)
-                //    .map_err(|e| ParseError::Error { message: e.to_string() })?;
-            }
-            _ => {
-                // Serialize regular sections immediately
-                serde_json::to_writer_pretty(&mut self.writer, &section)
-                    .map_err(|e| ParseError::Error { message: e.to_string() })?;
-            }
-        }
-        */
-
+        self.current_section = Some(section);
         Ok(())
     }
 
     fn entry(&mut self, entry: SectionEntry) -> Result<(), ParseError> {
-        if let SectionEntry::Delimited(kv) = entry {
-            serde_json::to_writer_pretty(&mut self.writer, &kv)
-                .map_err(|e| ParseError::Error { message: e.to_string() })?;
+        if let Some(curr_sect) = self.current_section.as_mut() {
+            curr_sect.entries.push(entry);
         }
         Ok(())
     }
 
     fn ascii_row(&mut self, row: &[LasFloat]) -> Result<(), ParseError> {
-        /*
-        if !self.in_ascii_section {
-            return Err(ParseError::Error {
-                message: "ASCII row outside of ASCII section".to_string(),
-            });
+        if !self.is_first_ascii_row {
+            write!(self.writer, ",")?;
         }
-        */
-
-        // Convert numbers to strings to match your JSON example
-        let row_as_strings: Vec<String> = row.iter().map(|f| format!("{}", f)).collect();
-
-        // Append row to rows array (streaming; we just serialize each row immediately)
-        serde_json::to_writer_pretty(&mut self.writer, &row_as_strings)
-            .map_err(|e| ParseError::Error { message: e.to_string() })
+        self.is_first_ascii_row = false;
+        serde_json::to_writer_pretty(&mut self.writer, row)
+            .map_err(|e| ParseError::Error { message: e.to_string() })?;
+        Ok(())
     }
 
     fn end_section(&mut self) -> Result<(), ParseError> {
-        // If ASCII, mark it ended
-        self.in_ascii_section = false;
-        self.current_ascii_headers = None;
+        if let Some(section) = self.current_section.take() {
+            let kind = section.header.kind;
+
+            match kind {
+                SectionKind::Version => {
+                    write!(self.writer, "  \"VersionInformation\": ")?;
+                    serde_json::to_writer_pretty(&mut self.writer, &VersionInformation::try_from(section)?)
+                        .map_err(|e| ParseError::Error { message: e.to_string() })?;
+                }
+                SectionKind::Well => {
+                    write!(self.writer, "  \"WellInformation\": ")?;
+                    serde_json::to_writer_pretty(&mut self.writer, &WellInformation::try_from(section)?)
+                        .map_err(|e| ParseError::Error { message: e.to_string() })?;
+                }
+                SectionKind::Curve => {
+                    write!(self.writer, "  \"CurveInformation\": ")?;
+                    serde_json::to_writer_pretty(&mut self.writer, &CurveInformation::try_from(section)?)
+                        .map_err(|e| ParseError::Error { message: e.to_string() })?;
+                }
+                SectionKind::Parameter => {
+                    write!(self.writer, "  \"ParameterInformation\": ")?;
+                    serde_json::to_writer_pretty(&mut self.writer, &ParameterInformation::try_from(section)?)
+                        .map_err(|e| ParseError::Error { message: e.to_string() })?;
+                }
+                SectionKind::Other => {
+                    write!(self.writer, "  \"OtherInformation\": ")?;
+                    serde_json::to_writer_pretty(&mut self.writer, &OtherInformation::try_from(section)?)
+                        .map_err(|e| ParseError::Error { message: e.to_string() })?;
+                }
+                SectionKind::AsciiLogData => {
+                    writeln!(self.writer, "]")?;
+                    writeln!(self.writer, "}}")?;
+                }
+            };
+
+            // AsciiLogData is expected to be the last section in a .las file.
+            // That is how we can get away with making these assumptions.
+            if kind != SectionKind::AsciiLogData {
+                writeln!(self.writer, ",")?;
+            } else {
+                writeln!(self.writer, "}}")?;
+            }
+        }
+
         Ok(())
     }
 }
-
