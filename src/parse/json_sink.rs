@@ -9,13 +9,19 @@ use std::io::Write;
 // We store every section outside of AsciiLogData within the 'current_section'.
 // Those sections are very small in comparison to ascii data. We directly stream
 // and write the ascii data to the writer, no allocations or buffering.
-pub struct JsonSink<W: Write> {
+pub struct JsonSink<W>
+where
+    W: Write,
+{
     writer: W,
     current_section: Option<Section>,
     is_first_ascii_row: bool,
 }
 
-impl<W: Write> JsonSink<W> {
+impl<W> JsonSink<W>
+where
+    W: Write,
+{
     pub fn new(writer: W) -> Self {
         let mut this = Self {
             writer,
@@ -36,7 +42,10 @@ impl<W: Write> JsonSink<W> {
     }
 }
 
-impl<W: Write> Sink for JsonSink<W> {
+impl<W> Sink for JsonSink<W>
+where
+    W: Write,
+{
     fn start_section(&mut self, section: Section) -> Result<(), ParseError> {
         if section.header.kind == SectionKind::AsciiLogData {
             write!(self.writer, "\"AsciiLogData\":{{\"headers\":")?;

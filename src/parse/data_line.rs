@@ -1,8 +1,6 @@
-use std::fmt;
-
-use serde::{Deserialize, Serialize};
-
 use crate::{parse::LasValue, write_comments};
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // The sections "VERSION", "WELL", "CURVE" and "PARAMETER" use line delimiters.
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]

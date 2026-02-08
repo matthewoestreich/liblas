@@ -1,8 +1,6 @@
-use std::{fmt, str::FromStr};
-
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
 use crate::ParseError;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::{fmt, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub struct LasFloat {
