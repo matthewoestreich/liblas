@@ -23,13 +23,11 @@ where
     W: Write,
 {
     pub fn new(writer: W) -> Self {
-        let mut this = Self {
+        Self {
             writer,
             current_section: None,
             is_first_ascii_row: true,
-        };
-        write!(&mut this.writer, "{{").expect("no error");
-        this
+        }
     }
 
     fn write_section<T>(&mut self, section_name: &str, section: &T) -> Result<(), ParseError>
@@ -46,7 +44,17 @@ impl<W> Sink for JsonSink<W>
 where
     W: Write,
 {
-    fn start_section(&mut self, section: Section) -> Result<(), ParseError> {
+    fn start(&mut self) -> Result<(), ParseError> {
+        write!(&mut self.writer, "{{")?;
+        Ok(())
+    }
+
+    fn end(&mut self) -> Result<(), ParseError> {
+        write!(self.writer, "}}")?;
+        Ok(())
+    }
+
+    fn section_start(&mut self, section: Section) -> Result<(), ParseError> {
         if section.header.kind == SectionKind::AsciiLogData {
             write!(self.writer, "\"AsciiLogData\":{{\"headers\":")?;
             serde_json::to_writer(&mut self.writer, &section.ascii_headers)
@@ -73,7 +81,7 @@ where
         Ok(())
     }
 
-    fn end_section(&mut self) -> Result<(), ParseError> {
+    fn section_end(&mut self) -> Result<(), ParseError> {
         if let Some(section) = self.current_section.take() {
             let kind = section.header.kind;
 
@@ -94,8 +102,6 @@ where
             // That is how we can get away with making these assumptions.
             if kind != SectionKind::AsciiLogData {
                 write!(self.writer, ",")?;
-            } else {
-                write!(self.writer, "}}")?;
             }
         }
 

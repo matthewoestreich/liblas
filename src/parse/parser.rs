@@ -1,6 +1,5 @@
 use crate::{
-    Section, SectionEntry, SectionKind,
-    errors::ParseError,
+    ParseError, Section, SectionEntry, SectionKind,
     parse::{DataLine, LasFloat, LasValue, ParserState, REQUIRED_SECTIONS, Sink, str_contains},
     tokenizer::LasToken,
 };
@@ -41,6 +40,8 @@ where
     where
         S: Sink,
     {
+        sink.start()?;
+
         while let Some(token) = self.next_token()? {
             match token {
                 LasToken::SectionHeader { name, line_number } => {
@@ -79,8 +80,8 @@ where
                         next_section.ascii_headers = Some(self.curve_mnemonics.clone());
                     }
 
-                    sink.end_section()?;
-                    sink.start_section(next_section)?;
+                    sink.section_end()?;
+                    sink.section_start(next_section)?;
                     self.current_section = Some(next_section_kind);
                 }
                 LasToken::DataLine { raw, line_number } => {
@@ -129,9 +130,10 @@ where
         self.validate_curves()?;
 
         if let Some(_curr_section) = self.current_section.take() {
-            sink.end_section()?;
+            sink.section_end()?;
         }
 
+        sink.end()?;
         Ok(())
     }
 

@@ -18,7 +18,7 @@ impl ParsedLasFile {
 }
 
 impl Sink for ParsedLasFile {
-    fn start_section(&mut self, section: Section) -> Result<(), ParseError> {
+    fn section_start(&mut self, section: Section) -> Result<(), ParseError> {
         self.current_section = Some(section);
         Ok(())
     }
@@ -37,7 +37,7 @@ impl Sink for ParsedLasFile {
         Ok(())
     }
 
-    fn end_section(&mut self) -> Result<(), ParseError> {
+    fn section_end(&mut self) -> Result<(), ParseError> {
         if let Some(sec) = self.current_section.take() {
             self.sections.push(sec);
         }
