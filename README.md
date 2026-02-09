@@ -1,5 +1,7 @@
 # liblas
 
+[![Crates.io](https://img.shields.io/crates/v/liblas.svg)](https://crates.io/crates/liblas) [![docs.rs](https://img.shields.io/docsrs/liblas?style=flat-square)](https://docs.rs/liblas/latest/liblas/)
+
 Parse .las Files in Rust
 
 [Canadian Well Logging Society LAS File 2.0 Specification](https://github.com/matthewoestreich/liblas/blob/7dcfca33c32ed2bc97a5fc721f5c5676f287c872/spec/CWLS_LAS_2_0_SPEC.pdf)
@@ -123,9 +125,7 @@ data between 625 metres and 615 metres to be invalid.
 ## Parse LAS File
 
 ```rust
-fn main() {
-  let parsed_file = liblas::parse("las_files/_good_sample_1.las")?;
-}
+let parsed_file = liblas::parse("las_files/_good_sample_1.las")?;
 ```
 
 ## Convert Parsed LAS File
