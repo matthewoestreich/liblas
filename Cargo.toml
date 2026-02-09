@@ -13,6 +13,14 @@ categories = [
   "command-line-utilities",
   "science",
 ] # See available categories here: https://crates.io/category_slugs
+exclude = [
+  "las_files/*",
+  "spec/*",
+  "plots/*",
+  "examples/*",
+  "sample_las_files/*",
+  "exported_las/*",
+]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
