@@ -1,15 +1,10 @@
 use crate::{
     ParseError,
-    parse::{JsonSink, LasParser, ParsedLasFile, SectionKind, YamlSink},
+    parse::{ParsedLasFile, SectionKind},
     sections::*,
-    tokenizer::LasTokenizer,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt,
-    fs::File,
-    io::{BufReader, BufWriter, Write},
-};
+use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LasFile {
@@ -70,93 +65,6 @@ impl LasFile {
 
     pub fn to_las_str(&mut self) -> String {
         self.to_string()
-    }
-
-    /// Streams from parser into out file.
-    pub fn parse_into_json_file(las_file_path: &str, json_file_path: &str) -> Result<(), ParseError> {
-        let file = File::open(las_file_path)?;
-        let reader = BufReader::new(file);
-
-        let out_file = File::create(json_file_path)?;
-        let writer = BufWriter::new(out_file);
-        let mut sink = JsonSink::new(writer);
-
-        let tokenizer = LasTokenizer::new(reader);
-        let mut parser = LasParser::new(tokenizer);
-        parser.parse_into(&mut sink)?;
-        Ok(())
-    }
-
-    pub fn parse_into_json_writer<W>(las_file_path: &str, writer: W) -> Result<(), ParseError>
-    where
-        W: Write,
-    {
-        let file = File::open(las_file_path)?;
-        let reader = BufReader::new(file);
-
-        let mut sink = JsonSink::new(writer);
-
-        let tokenizer = LasTokenizer::new(reader);
-        let mut parser = LasParser::new(tokenizer);
-        parser.parse_into(&mut sink)?;
-        Ok(())
-    }
-
-    pub fn parse_into_yaml_writer<W>(las_file_path: &str, writer: W) -> Result<(), ParseError>
-    where
-        W: Write,
-    {
-        let file = File::open(las_file_path)?;
-        let reader = BufReader::new(file);
-
-        let mut sink = YamlSink::new(writer);
-
-        let tokenizer = LasTokenizer::new(reader);
-        let mut parser = LasParser::new(tokenizer);
-        parser.parse_into(&mut sink)?;
-        Ok(())
-    }
-
-    pub fn parse_into_yaml_file(las_file_path: &str, yaml_file_path: &str) -> Result<(), ParseError> {
-        let file = File::open(las_file_path)?;
-        let reader = BufReader::new(file);
-
-        let out_file = File::create(yaml_file_path)?;
-        let writer = BufWriter::new(out_file);
-        let mut sink = YamlSink::new(writer);
-
-        let tokenizer = LasTokenizer::new(reader);
-        let mut parser = LasParser::new(tokenizer);
-        parser.parse_into(&mut sink)?;
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn parse_to_stdout(las_file_path: &str) -> Result<(), ParseError> {
-        let file = File::open(las_file_path)?;
-        let reader = BufReader::new(file);
-
-        let stdout = std::io::stdout();
-        let handle = stdout.lock();
-        let mut sink = JsonSink::new(handle);
-
-        let tokenizer = LasTokenizer::new(reader);
-        let mut parser = LasParser::new(tokenizer);
-        parser.parse_into(&mut sink)?;
-        Ok(())
-    }
-
-    pub fn parse(las_file_path: &str) -> Result<Self, ParseError> {
-        let file = File::open(las_file_path)?;
-        let reader = BufReader::new(file);
-
-        let mut sink = ParsedLasFile::new();
-
-        let tokenizer = LasTokenizer::new(reader);
-        let mut parser = LasParser::new(tokenizer);
-        parser.parse_into(&mut sink)?;
-
-        LasFile::try_from(sink)
     }
 }
 

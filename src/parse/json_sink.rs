@@ -9,7 +9,7 @@ use std::io::Write;
 // We store every section outside of AsciiLogData within the 'current_section'.
 // Those sections are very small in comparison to ascii data. We directly stream
 // and write the ascii data to the writer, no allocations or buffering.
-pub struct JsonSink<W>
+pub(crate) struct JsonSink<W>
 where
     W: Write,
 {

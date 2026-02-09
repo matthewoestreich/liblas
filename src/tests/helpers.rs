@@ -4,7 +4,7 @@ use super::*;
 use std::ops::Range;
 
 pub(crate) fn parse_las_file(path: &str) -> Result<LasFile, ParseError> {
-    LasFile::parse(path)
+    super::parse(path)
 }
 
 pub(crate) fn depths(las: &LasFile) -> Vec<f64> {

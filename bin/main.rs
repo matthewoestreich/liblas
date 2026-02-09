@@ -1,28 +1,10 @@
-use clap::{Parser, ValueEnum};
-use core::fmt;
-use liblas::LasFile;
+use clap::Parser;
+use liblas::OutputFormat;
 use std::{
     fs::{OpenOptions, create_dir_all},
     path::PathBuf,
     process::exit,
 };
-
-#[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
-enum ExportType {
-    Json,
-    Yaml,
-    Yml,
-}
-
-impl fmt::Display for ExportType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExportType::Json => write!(f, "JSON"),
-            ExportType::Yaml => write!(f, "YAML"),
-            ExportType::Yml => write!(f, "YML"),
-        }
-    }
-}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -40,7 +22,7 @@ struct Args {
     out: String,
 
     #[arg(short = 't', long, required = true)]
-    out_type: ExportType,
+    out_type: OutputFormat,
 
     /// Will create directories within '--out' path if they do not exist.
     /// If file already exists we will overwrite it.
@@ -63,12 +45,12 @@ fn main() {
         exit(1);
     }
     // If JSON export type but out path doesn't end in json
-    if args.out_type == ExportType::Json && !args.out.ends_with(".json") {
+    if args.out_type == OutputFormat::JSON && !args.out.ends_with(".json") {
         println!("Error : '--out' path '{}' must be to a .json file!", args.out);
         exit(1);
     }
     // If YAML or YML export type but path doesn't end in YAML or YML
-    if (args.out_type == ExportType::Yaml || args.out_type == ExportType::Yml)
+    if (args.out_type == OutputFormat::YAML || args.out_type == OutputFormat::YML)
         && (!args.out.ends_with(".yaml") && !args.out.ends_with(".yml"))
     {
         println!("Error : '--out' path '{}' must be to a .yaml or .yml file!", args.out);
@@ -91,26 +73,10 @@ fn main() {
         exit(1);
     });
 
-    match args.out_type {
-        ExportType::Json => {
-            LasFile::parse_into_json_writer(&args.las, file).map_err(|e| {
-                println!(
-                    "Error converting .las file to .{} : {e:?}",
-                    args.out_type.to_string().to_lowercase()
-                );
-                exit(1);
-            });
-        }
-        ExportType::Yaml | ExportType::Yml => {
-            LasFile::parse_into_yaml_writer(&args.las, file).map_err(|e| {
-                println!(
-                    "Error converting .las file to .{} : {e:?}",
-                    args.out_type.to_string().to_lowercase()
-                );
-                exit(1);
-            });
-        }
-    }
+    liblas::parse_into(&args.las, file, args.out_type.clone()).map_err(|e| {
+        println!("Error converting .las file to .{} : {e:?}", args.out_type);
+        exit(1);
+    });
 
     println!("Success! Exported '{}' file to '{}'", args.out_type, args.out);
 }

@@ -30,7 +30,7 @@ fn test_parsed_file_to_las_file() {
 #[test]
 fn test_good_sample() {
     let file_path = "las_files/_good_sample_1.las";
-    let _parsed = LasFile::parse(file_path).unwrap();
+    let _parsed = super::parse(file_path).unwrap();
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn test_json_deserialization() {
 fn test_export_good_yaml() {
     let file_name = "_good_sample_1.las";
     let las_file_path = format!("las_files/{}", file_name);
-    let mut las_file = LasFile::parse(&las_file_path).unwrap();
+    let mut las_file = super::parse(&las_file_path).unwrap();
     println!("{}", las_file.to_yaml_str().unwrap());
 }
 
@@ -93,7 +93,7 @@ fn test_export_good_yaml() {
 fn test_export_good_json() {
     let file_name = "_good_sample_1.las";
     let las_file_path = format!("las_files/{}", file_name);
-    let mut las_file = LasFile::parse(&las_file_path).unwrap();
+    let mut las_file = super::parse(&las_file_path).unwrap();
     println!("{}", las_file.to_json_str().unwrap());
 }
 

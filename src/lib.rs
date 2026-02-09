@@ -11,8 +11,66 @@ pub mod sections;
 pub use errors::*;
 pub use las_file::*;
 
-use crate::parse::*;
-use std::fmt;
+use crate::{parse::*, tokenizer::LasTokenizer};
+use std::{
+    fmt,
+    fs::File,
+    io::{BufReader, Write},
+};
+
+/// Streams from parser directly into writer.
+pub fn parse_into<W>(las_file_path: &str, writer: W, output_format: OutputFormat) -> Result<(), ParseError>
+where
+    W: Write,
+{
+    let file = File::open(las_file_path)?;
+    let reader = BufReader::new(file);
+    let tokenizer = LasTokenizer::new(reader);
+    let mut parser = LasParser::new(tokenizer);
+
+    match output_format {
+        OutputFormat::JSON => {
+            let mut sink = JsonSink::new(writer);
+            parser.parse_into(&mut sink)?;
+        }
+        OutputFormat::YAML | OutputFormat::YML => {
+            let mut sink = YamlSink::new(writer);
+            parser.parse_into(&mut sink)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Parse .las file into LasFile
+pub fn parse(las_file_path: &str) -> Result<LasFile, ParseError> {
+    let file = File::open(las_file_path)?;
+    let reader = BufReader::new(file);
+
+    let tokenizer = LasTokenizer::new(reader);
+    let mut parser = LasParser::new(tokenizer);
+    let mut sink = ParsedLasFile::new();
+
+    parser.parse_into(&mut sink)?;
+    LasFile::try_from(sink)
+}
+
+#[derive(Debug, Clone, clap::ValueEnum, PartialEq, Eq)]
+pub enum OutputFormat {
+    JSON,
+    YAML,
+    YML,
+}
+
+impl fmt::Display for OutputFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OutputFormat::JSON => write!(f, "JSON"),
+            OutputFormat::YAML => write!(f, "YAML"),
+            OutputFormat::YML => write!(f, "YML"),
+        }
+    }
+}
 
 pub(crate) fn any_present<T>(items: &[&Option<T>]) -> bool {
     items.iter().any(|o| o.is_some())

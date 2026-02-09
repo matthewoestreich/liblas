@@ -1,4 +1,3 @@
-mod data_line;
 mod float;
 mod json_sink;
 mod parsed_las_file;
@@ -7,9 +6,7 @@ mod sink;
 mod value;
 mod yaml_sink;
 
-pub use data_line::*;
 pub use float::*;
-use serde::Serialize;
 pub use value::*;
 
 pub(crate) use json_sink::*;
@@ -17,6 +14,10 @@ pub(crate) use parsed_las_file::*;
 pub(crate) use parser::*;
 pub(crate) use sink::*;
 pub(crate) use yaml_sink::*;
+
+use crate::write_comments;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
 const REQUIRED_SECTIONS: [SectionKind; 4] = [
     SectionKind::Version,
@@ -45,6 +46,39 @@ enum ParserState {
     Working,
     // We set to end before parsing ASCII log data. Since it HAS to be the last section in a las file.
     End,
+}
+
+// ================================================================================================
+// ------------------------ DataLine --------------------------------------------------------------
+// ================================================================================================
+
+// The sections "VERSION", "WELL", "CURVE" and "PARAMETER" use line delimiters.
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DataLine {
+    pub mnemonic: String,
+    pub unit: Option<String>,
+    pub value: Option<LasValue>,
+    pub description: Option<String>,
+    pub comments: Option<Vec<String>>,
+}
+
+impl fmt::Display for DataLine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write_comments(f, &self.comments)?;
+        write!(f, "{}.", self.mnemonic)?;
+        if let Some(unit) = self.unit.as_ref() {
+            write!(f, "{unit}")?;
+        }
+        write!(f, " ")?;
+        if let Some(value) = self.value.as_ref() {
+            write!(f, "{value} ")?;
+        }
+        write!(f, ":")?;
+        if let Some(description) = self.description.as_ref() {
+            write!(f, " {description}")?;
+        }
+        Ok(())
+    }
 }
 
 // ================================================================================================
