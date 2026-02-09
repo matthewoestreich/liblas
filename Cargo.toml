@@ -1,6 +1,6 @@
 [package]
 name = "liblas"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 authors = ["Matt Oestreich"]
 description = "A Rust library to parse .las files"
