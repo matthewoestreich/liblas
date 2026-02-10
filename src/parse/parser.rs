@@ -6,14 +6,13 @@ use crate::{
 use std::{
     collections::{HashMap, hash_map::Entry},
     io,
-    iter::Peekable,
 };
 
 pub(crate) struct LasParser<I>
 where
     I: Iterator<Item = Result<LasToken, io::Error>>,
 {
-    tokens: Peekable<I>,
+    tokens: I,
     current_section: Option<SectionKind>,
     state: ParserState,
     parsed_sections: HashMap<SectionKind, usize>,
@@ -27,7 +26,7 @@ where
 {
     pub fn new(iter: I) -> Self {
         Self {
-            tokens: iter.peekable(),
+            tokens: iter,
             current_section: None,
             state: ParserState::Start,
             parsed_sections: HashMap::new(),
@@ -46,7 +45,7 @@ where
             self.handle_token(token, sink)?;
         }
 
-        self.finish_parse(sink)
+        self.finish(sink)
     }
 
     fn next_token(&mut self) -> Result<Option<LasToken>, ParseError> {
@@ -111,7 +110,6 @@ where
     }
 
     fn handle_comment(&mut self, text: String, line_number: usize) -> Result<(), ParseError> {
-        // Comments not allowed in ASCII data section.
         if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
             return Err(ParseError::AsciiDataContainsInvalidLine {
                 line_number,
@@ -123,7 +121,6 @@ where
     }
 
     fn handle_blank(&mut self, line_number: usize) -> Result<(), ParseError> {
-        // Blank lines not allowed in ASCII data section.
         if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
             return Err(ParseError::AsciiDataContainsInvalidLine {
                 line_number,
@@ -138,12 +135,10 @@ where
         if self.state == ParserState::Start && kind != SectionKind::Version {
             return Err(ParseError::VersionInformationNotFirst { line_number });
         }
-
         // ASCII log data section must be last
         if self.state == ParserState::End && kind != SectionKind::AsciiLogData {
             return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
         }
-
         Ok(())
     }
 
@@ -155,7 +150,6 @@ where
     }
 
     fn check_duplicate_section(&mut self, kind: SectionKind, line_number: usize) -> Result<(), ParseError> {
-        // Check for duplicate section.
         match self.parsed_sections.entry(kind) {
             Entry::Occupied(e) => {
                 return Err(ParseError::DuplicateSection {
@@ -169,10 +163,7 @@ where
         Ok(())
     }
 
-    fn finish_parse<S>(&mut self, sink: &mut S) -> Result<(), ParseError>
-    where
-        S: Sink,
-    {
+    fn check_for_required_sections(&self) -> Result<(), ParseError> {
         for required_section in REQUIRED_SECTIONS.iter() {
             if !self.parsed_sections.contains_key(required_section) {
                 return Err(ParseError::MissingSection {
@@ -180,7 +171,14 @@ where
                 });
             }
         }
+        Ok(())
+    }
 
+    fn finish<S>(&mut self, sink: &mut S) -> Result<(), ParseError>
+    where
+        S: Sink,
+    {
+        self.check_for_required_sections()?;
         self.validate_curves()?;
 
         if self.current_section.take().is_some() {
