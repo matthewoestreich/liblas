@@ -43,82 +43,136 @@ where
         sink.start()?;
 
         while let Some(token) = self.next_token()? {
-            match token {
-                LasToken::SectionHeader { name, line_number } => {
-                    let mut next_section = Section::new(name.to_string(), line_number);
-                    next_section.comments = self.comments.take();
-                    let next_section_kind = next_section.header.kind;
-
-                    // Version information section must be first!
-                    if self.state == ParserState::Start && next_section_kind != SectionKind::Version {
-                        return Err(ParseError::VersionInformationNotFirst { line_number });
-                    }
-
-                    // ASCII log data section must be last
-                    if self.state == ParserState::End && next_section_kind != SectionKind::AsciiLogData {
-                        return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
-                    }
-
-                    self.state = match next_section_kind {
-                        SectionKind::AsciiLogData => ParserState::End,
-                        _ => ParserState::Working,
-                    };
-
-                    // Check for duplicate section.
-                    match self.parsed_sections.entry(next_section_kind) {
-                        Entry::Occupied(e) => {
-                            return Err(ParseError::DuplicateSection {
-                                section: next_section_kind,
-                                line_number,
-                                duplicate_line_number: *e.get(),
-                            });
-                        }
-                        Entry::Vacant(e) => e.insert(line_number),
-                    };
-
-                    if next_section_kind == SectionKind::AsciiLogData {
-                        next_section.ascii_headers = Some(self.curve_mnemonics.clone());
-                    }
-
-                    sink.section_end()?;
-                    sink.section_start(next_section)?;
-                    self.current_section = Some(next_section_kind);
-                }
-                LasToken::DataLine { raw, line_number } => {
-                    let entry = self.parse_data_line(&raw, line_number)?;
-                    match &entry {
-                        SectionEntry::AsciiLogData(row) => sink.ascii_row(row)?,
-                        SectionEntry::Raw { .. } => sink.entry(entry)?,
-                        SectionEntry::Delimited(data_line) => {
-                            if self.current_section.is_some_and(|s| s == SectionKind::Curve) {
-                                self.curve_mnemonics.push(data_line.mnemonic.clone());
-                            }
-                            sink.entry(entry)?;
-                        }
-                    }
-                }
-                LasToken::Comment { text, line_number } => {
-                    // Comments not allowed in ASCII data section.
-                    if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
-                        return Err(ParseError::AsciiDataContainsInvalidLine {
-                            line_number,
-                            line_kind: crate::InvalidLineKind::Comment,
-                        });
-                    }
-                    self.comments.get_or_insert_with(Vec::new).push(text);
-                }
-                LasToken::Blank { line_number } => {
-                    // Blank lines not allowed in ASCII data section.
-                    if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
-                        return Err(ParseError::AsciiDataContainsInvalidLine {
-                            line_number,
-                            line_kind: crate::InvalidLineKind::Empty,
-                        });
-                    }
-                }
-            }
+            self.handle_token(token, sink)?;
         }
 
+        self.finish_parse(sink)
+    }
+
+    fn next_token(&mut self) -> Result<Option<LasToken>, ParseError> {
+        match self.tokens.next() {
+            Some(Ok(tok)) => Ok(Some(tok)),
+            Some(Err(e)) => Err(ParseError::Io(e)),
+            None => Ok(None),
+        }
+    }
+
+    fn handle_token<S>(&mut self, token: LasToken, sink: &mut S) -> Result<(), ParseError>
+    where
+        S: Sink,
+    {
+        match token {
+            LasToken::SectionHeader { name, line_number } => self.handle_section_header(name, line_number, sink),
+            LasToken::DataLine { raw, line_number } => self.handle_data_line(&raw, line_number, sink),
+            LasToken::Comment { text, line_number } => self.handle_comment(text, line_number),
+            LasToken::Blank { line_number } => self.handle_blank(line_number),
+        }
+    }
+
+    fn handle_section_header<S>(&mut self, name: String, line_number: usize, sink: &mut S) -> Result<(), ParseError>
+    where
+        S: Sink,
+    {
+        let mut next_section = Section::new(name, line_number);
+        next_section.comments = self.comments.take();
+        let kind = next_section.header.kind;
+
+        self.validate_section_order(kind, line_number)?;
+        self.update_parser_state(kind);
+        self.check_duplicate_section(kind, line_number)?;
+
+        if kind == SectionKind::AsciiLogData {
+            next_section.ascii_headers = Some(self.curve_mnemonics.clone());
+        }
+
+        sink.section_end()?;
+        sink.section_start(next_section)?;
+        self.current_section = Some(kind);
+
+        Ok(())
+    }
+
+    fn handle_data_line<S>(&mut self, raw: &str, line_number: usize, sink: &mut S) -> Result<(), ParseError>
+    where
+        S: Sink,
+    {
+        let entry = self.parse_data_line(raw, line_number)?;
+        match &entry {
+            SectionEntry::AsciiLogData(row) => sink.ascii_row(row)?,
+            SectionEntry::Raw { .. } => sink.entry(entry)?,
+            SectionEntry::Delimited(data_line) => {
+                if self.current_section.is_some_and(|s| s == SectionKind::Curve) {
+                    self.curve_mnemonics.push(data_line.mnemonic.clone());
+                }
+                sink.entry(entry)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_comment(&mut self, text: String, line_number: usize) -> Result<(), ParseError> {
+        // Comments not allowed in ASCII data section.
+        if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
+            return Err(ParseError::AsciiDataContainsInvalidLine {
+                line_number,
+                line_kind: crate::InvalidLineKind::Comment,
+            });
+        }
+        self.comments.get_or_insert_with(Vec::new).push(text);
+        Ok(())
+    }
+
+    fn handle_blank(&mut self, line_number: usize) -> Result<(), ParseError> {
+        // Blank lines not allowed in ASCII data section.
+        if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
+            return Err(ParseError::AsciiDataContainsInvalidLine {
+                line_number,
+                line_kind: crate::InvalidLineKind::Empty,
+            });
+        }
+        Ok(())
+    }
+
+    fn validate_section_order(&self, kind: SectionKind, line_number: usize) -> Result<(), ParseError> {
+        // Version information section must be first!
+        if self.state == ParserState::Start && kind != SectionKind::Version {
+            return Err(ParseError::VersionInformationNotFirst { line_number });
+        }
+
+        // ASCII log data section must be last
+        if self.state == ParserState::End && kind != SectionKind::AsciiLogData {
+            return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
+        }
+
+        Ok(())
+    }
+
+    fn update_parser_state(&mut self, kind: SectionKind) {
+        self.state = match kind {
+            SectionKind::AsciiLogData => ParserState::End,
+            _ => ParserState::Working,
+        };
+    }
+
+    fn check_duplicate_section(&mut self, kind: SectionKind, line_number: usize) -> Result<(), ParseError> {
+        // Check for duplicate section.
+        match self.parsed_sections.entry(kind) {
+            Entry::Occupied(e) => {
+                return Err(ParseError::DuplicateSection {
+                    section: kind,
+                    line_number,
+                    duplicate_line_number: *e.get(),
+                });
+            }
+            Entry::Vacant(e) => e.insert(line_number),
+        };
+        Ok(())
+    }
+
+    fn finish_parse<S>(&mut self, sink: &mut S) -> Result<(), ParseError>
+    where
+        S: Sink,
+    {
         for required_section in REQUIRED_SECTIONS.iter() {
             if !self.parsed_sections.contains_key(required_section) {
                 return Err(ParseError::MissingSection {
@@ -129,20 +183,12 @@ where
 
         self.validate_curves()?;
 
-        if let Some(_curr_section) = self.current_section.take() {
+        if self.current_section.take().is_some() {
             sink.section_end()?;
         }
 
         sink.end()?;
         Ok(())
-    }
-
-    fn next_token(&mut self) -> Result<Option<LasToken>, ParseError> {
-        match self.tokens.next() {
-            Some(Ok(tok)) => Ok(Some(tok)),
-            Some(Err(e)) => Err(ParseError::Io(e)),
-            None => Ok(None),
-        }
     }
 
     fn parse_data_line(&mut self, raw: &str, line_number: usize) -> Result<SectionEntry, ParseError> {
