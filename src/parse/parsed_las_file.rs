@@ -1,6 +1,6 @@
 use crate::{
     ParseError,
-    parse::{LasFloat, Section, SectionEntry, Sink},
+    parse::{Section, SectionEntry, Sink},
 };
 
 pub(crate) struct ParsedLasFile {
@@ -30,7 +30,7 @@ impl Sink for ParsedLasFile {
         Ok(())
     }
 
-    fn ascii_row(&mut self, row: &[LasFloat]) -> Result<(), ParseError> {
+    fn ascii_row(&mut self, row: &[String]) -> Result<(), ParseError> {
         if let Some(sec) = self.current_section.as_mut() {
             sec.ascii_rows.push(row.to_vec());
         }

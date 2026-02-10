@@ -1,11 +1,11 @@
-use crate::{LasFloat, ParseError, Section, SectionKind, write_comments};
+use crate::{ParseError, Section, SectionKind, write_comments};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AsciiLogData {
     pub headers: Vec<String>,
-    pub rows: Vec<Vec<LasFloat>>,
+    pub rows: Vec<Vec<String>>,
     pub comments: Option<Vec<String>>,
     pub header: String,
     #[serde(skip)]
@@ -29,7 +29,7 @@ impl fmt::Display for AsciiLogData {
         writeln!(f, "{}", self.header)?;
         for row in self.rows.iter() {
             for cell in row.iter() {
-                write!(f, "{} ", cell.raw.clone())?;
+                write!(f, "{} ", cell.clone())?;
             }
             writeln!(f)?;
         }

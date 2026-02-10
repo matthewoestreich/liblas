@@ -12,7 +12,11 @@ pub(crate) fn depths(las: &LasFile) -> Vec<f64> {
     if !first_header_col.to_lowercase().starts_with("dept") {
         panic!("first header column is not depth! got {first_header_col}");
     }
-    las.ascii_log_data.rows.iter().map(|row| row[0].value).collect()
+    las.ascii_log_data
+        .rows
+        .iter()
+        .map(|row| row[0].parse::<f64>().unwrap())
+        .collect()
 }
 
 /// One plotted curve (column)
@@ -60,7 +64,7 @@ pub(crate) fn plot_curves(las: &LasFile) -> Vec<PlotCurve> {
 /// Compute per-curve X axis range ignoring NULLs
 pub(crate) fn x_range_for_curve(las: &LasFile, col_idx: usize, pad_frac: f64) -> Option<Range<f64>> {
     let null_value = match las.well_information.null.value.as_ref() {
-        Some(LasValue::Float(v)) => v.value,
+        Some(LasValue::Float(v)) => v.parse().unwrap(), //v.value,
         Some(LasValue::Int(v)) => *v as f64,
         _ => return None,
     };
@@ -69,12 +73,13 @@ pub(crate) fn x_range_for_curve(las: &LasFile, col_idx: usize, pad_frac: f64) ->
     let mut max = f64::NEG_INFINITY;
 
     for row in &las.ascii_log_data.rows {
-        let v = &row[col_idx];
-        if v.value == null_value {
+        let val = &row[col_idx];
+        let v = val.parse::<f64>().unwrap(); //&row[col_idx];
+        if v == null_value {
             continue;
         }
-        min = min.min(v.value);
-        max = max.max(v.value);
+        min = min.min(v);
+        max = max.max(v);
     }
 
     if !min.is_finite() || min == max {
@@ -105,7 +110,7 @@ pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Re
     let row_areas = root.split_evenly((num_rows, 1));
 
     let null_value = match las.well_information.null.value.as_ref() {
-        Some(LasValue::Float(v)) => v.value,
+        Some(LasValue::Float(v)) => v.parse().unwrap(), //v.value,
         Some(LasValue::Int(v)) => *v as f64,
         _ => unreachable!(),
     };
@@ -144,11 +149,12 @@ pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Re
             chart.configure_mesh().disable_mesh().x_labels(6).y_labels(15).draw()?;
 
             let series = las.ascii_log_data.rows.iter().filter_map(|row| {
-                let v = &row[curve.col_idx];
-                if v.value == null_value {
+                let val = &row[curve.col_idx];
+                let v = val.parse::<f64>().unwrap(); //&row[curve.col_idx];
+                if v == null_value {
                     None
                 } else {
-                    Some((v.value, row[0].value))
+                    Some((v, row[0].parse::<f64>().unwrap()))
                 }
             });
 

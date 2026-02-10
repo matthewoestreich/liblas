@@ -1,6 +1,6 @@
 use crate::{
     ParseError, Section, SectionEntry, SectionKind,
-    parse::{DataLine, LasFloat, LasValue, ParserState, REQUIRED_SECTIONS, Sink, str_contains},
+    parse::{DataLine, LasValue, ParserState, REQUIRED_SECTIONS, Sink, str_contains},
     tokenizer::LasToken,
 };
 use std::{
@@ -305,15 +305,7 @@ where
             return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
         }
 
-        let values: Vec<LasFloat> = raw
-            .split_whitespace()
-            .map(|s| {
-                s.parse::<LasFloat>().map_err(|_| ParseError::InvalidAsciiValue {
-                    line_number,
-                    raw_value: s.to_string(),
-                })
-            })
-            .collect::<Result<_, _>>()?;
+        let values: Vec<String> = raw.split_whitespace().map(|s| s.to_string()).collect();
 
         if values.len() != self.curve_mnemonics.len() {
             return Err(ParseError::AsciiColumnsMismatch {

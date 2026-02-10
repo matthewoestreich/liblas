@@ -1,6 +1,6 @@
 use crate::{
     ParseError,
-    parse::{LasFloat, Section, SectionEntry},
+    parse::{Section, SectionEntry},
 };
 
 pub(crate) trait Sink {
@@ -9,7 +9,7 @@ pub(crate) trait Sink {
     // Fires when we encounter a section entry.
     fn entry(&mut self, entry: SectionEntry) -> Result<(), ParseError>;
     // Fires when we encounter an ascii data row.
-    fn ascii_row(&mut self, row: &[LasFloat]) -> Result<(), ParseError>;
+    fn ascii_row(&mut self, row: &[String]) -> Result<(), ParseError>;
     // Fires when we are done parsing a section.
     fn section_end(&mut self) -> Result<(), ParseError>;
     // Fires when the parser starts parsing.

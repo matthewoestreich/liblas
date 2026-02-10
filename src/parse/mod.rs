@@ -1,4 +1,3 @@
-mod float;
 mod json_sink;
 mod parsed_las_file;
 mod parser;
@@ -6,7 +5,6 @@ mod sink;
 mod value;
 mod yaml_sink;
 
-pub use float::*;
 pub use value::*;
 
 pub(crate) use json_sink::*;
@@ -92,7 +90,7 @@ pub(crate) struct Section {
     pub line: usize,
     pub entries: Vec<SectionEntry>,
     pub ascii_headers: Option<Vec<String>>,
-    pub ascii_rows: Vec<Vec<LasFloat>>,
+    pub ascii_rows: Vec<Vec<String>>,
     pub comments: Option<Vec<String>>,
 }
 
@@ -119,7 +117,7 @@ impl Section {
 #[derive(Debug, Serialize)]
 pub(crate) enum SectionEntry {
     Delimited(DataLine),
-    AsciiLogData(Vec<LasFloat>),
+    AsciiLogData(Vec<String>),
     Raw {
         text: String,
         comments: Option<Vec<String>>,

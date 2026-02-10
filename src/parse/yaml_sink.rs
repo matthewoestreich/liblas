@@ -1,6 +1,6 @@
 use crate::{
     ParseError,
-    parse::{LasFloat, Section, SectionEntry, SectionKind, Sink},
+    parse::{Section, SectionEntry, SectionKind, Sink},
     sections::{CurveInformation, OtherInformation, ParameterInformation, VersionInformation, WellInformation},
 };
 use serde::Serialize;
@@ -72,7 +72,7 @@ where
         Ok(())
     }
 
-    fn ascii_row(&mut self, row: &[LasFloat]) -> Result<(), ParseError> {
+    fn ascii_row(&mut self, row: &[String]) -> Result<(), ParseError> {
         if row.is_empty() {
             return Err(ParseError::Error {
                 message:
@@ -81,9 +81,9 @@ where
             });
         }
 
-        writeln!(self.writer, "  - - '{}'", row[0].raw)?;
+        writeln!(self.writer, "  - - '{}'", row[0])?;
         for row in row[1..].iter() {
-            writeln!(self.writer, "    - '{}'", row.raw)?;
+            writeln!(self.writer, "    - '{}'", row)?;
         }
         Ok(())
     }

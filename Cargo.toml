@@ -22,6 +22,13 @@ exclude = [
   "exported_las/*",
 ]
 
+[profile.dev]
+debug = true
+#debug-assertions = true
+lto = false
+codegen-units = 1
+opt-level = 0
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

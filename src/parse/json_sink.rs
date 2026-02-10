@@ -1,6 +1,6 @@
 use crate::{
     ParseError,
-    parse::{LasFloat, Section, SectionEntry, SectionKind, Sink},
+    parse::{Section, SectionEntry, SectionKind, Sink},
     sections::{CurveInformation, OtherInformation, ParameterInformation, VersionInformation, WellInformation},
 };
 use serde::Serialize;
@@ -72,7 +72,7 @@ where
         Ok(())
     }
 
-    fn ascii_row(&mut self, row: &[LasFloat]) -> Result<(), ParseError> {
+    fn ascii_row(&mut self, row: &[String]) -> Result<(), ParseError> {
         if !self.is_first_ascii_row {
             write!(self.writer, ",")?;
         }
