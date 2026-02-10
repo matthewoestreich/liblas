@@ -40,11 +40,9 @@ where
         S: Sink,
     {
         sink.start()?;
-
         while let Some(token) = self.next_token()? {
             self.handle_token(token, sink)?;
         }
-
         self.finish(sink)
     }
 
