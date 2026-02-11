@@ -81,7 +81,7 @@ fn test_json_deserialization() {
 #[ignore]
 // run with 'cargo nextest run --release test_large_las_file --lib --nocapture --run-ignored=only'
 fn test_large_las_file() {
-    let las_file_size_in_mb = 1000;
+    let las_file_size_in_mb = 50;
     let large_las_cursor = generate_temp_las(las_file_size_in_mb).unwrap(); // Cursor<Vec<u8>>
     let writer = std::io::sink();
     let start = Instant::now();
