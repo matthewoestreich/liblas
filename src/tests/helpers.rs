@@ -1,10 +1,88 @@
 use plotters::style::full_palette::BLUE_A700;
 
 use super::*;
-use std::ops::Range;
+use std::{
+    io::{Cursor, Seek},
+    ops::Range,
+};
 
 pub(crate) fn parse_las_file(path: &str) -> Result<LasFile, ParseError> {
     super::parse(path)
+}
+
+pub(crate) fn generate_temp_las(size_in_mb: usize) -> std::io::Result<Cursor<Vec<u8>>> {
+    let target_size_bytes = size_in_mb * 1024 * 1024; // 250 MB
+
+    let buffer = Vec::with_capacity(target_size_bytes);
+    let mut writer = Cursor::new(buffer);
+
+    write!(
+        writer,
+        r#"~Version Information
+VERS.                      2.0: CWLS Log ASCII Standard - VERSION 2.0
+WRAP.                       NO: One line per depth step
+~Well Information Block
+STRT.FT               -14.0000: START DEPTH
+STOP.FT              9405.0000: STOP DEPTH
+STEP.FT                 0.5000: STEP
+NULL.                -999.2500: NULL VALUE
+COMP.          Foo Energy: COMPANY
+WELL.          Brand 11 - 2 -3 4Z: WELL
+FLD.                     Dyess: FIELD
+LOC.           Lat: 30.111111--Long: -60.222222----: LOCATION
+CNTY.                MakeBelieve: COUNTY
+SRVC.      Oil Well Service Co: SERVICE COMPANY
+DATE.          Mon Nov 21 10-28-03 2016: LOG DATE
+UWI.              11-222-33333: UNIQUE WELL ID
+STAT.                       OH: STATE
+~Curve Information Block
+DEPT.FT            0 000 00 00: Depth
+GR.GAPI                       : Gamma Ray
+CCL.                          : Casing Collar Locator
+AMP3FT.MV                     : AMP3FT Amplitude
+TT3FT.USEC                    : 3FT Travel Time
+AMPS1.                        : AMPS1 Amplitude
+AMPS2.                        : AMPS2 Amplitude
+AMPS3.                        : AMPS3 Amplitude
+AMPS4.                        : AMPS4 Amplitude
+AMPS5.                        : AMPS5 Amplitude
+AMPS6.                        : AMPS6 Amplitude
+AMPS7.                        : AMPS7 Amplitude
+AMPS8.                        : AMPS8 Amplitude
+Temp.DEGF                     : Integral Temperature
+LTEN.LB                       : Surface Line Tension
+ADPTH.FT                      : Actual Depth
+~Parameter Information Block
+TDEPTH.FT               0.0000: Total Depth
+~A  Depth        GR         CCL        AMP3FT      TT3FT       AMPS1       AMPS2       AMPS3       AMPS4       AMPS5       AMPS6       AMPS7       AMPS8        Temp        LTEN       ADPTH 
+"#
+    )?;
+
+    writer.flush()?; // ensure header is written
+
+    //let mut file = writer.into_inner()?;
+    //let mut writer = BufWriter::new(&mut file);
+
+    let mut depth = -14.0;
+
+    while writer.get_ref().len() < target_size_bytes {
+        writeln!(
+            writer,
+            "{:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3} {:8.3}",
+            depth, 80.0, 1.0, 120.0, 55.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 180.0, 200.0, depth
+        )?;
+
+        depth += 0.5;
+    }
+
+    writer.flush()?;
+
+    println!("Finished generating LAS file.");
+    println!("Size: {} MB", writer.get_ref().len() / 1024 / 1024);
+
+    writer.seek(std::io::SeekFrom::Start(0))?;
+
+    Ok(writer)
 }
 
 pub(crate) fn depths(las: &LasFile) -> Vec<f64> {
@@ -64,7 +142,7 @@ pub(crate) fn plot_curves(las: &LasFile) -> Vec<PlotCurve> {
 /// Compute per-curve X axis range ignoring NULLs
 pub(crate) fn x_range_for_curve(las: &LasFile, col_idx: usize, pad_frac: f64) -> Option<Range<f64>> {
     let null_value = match las.well_information.null.value.as_ref() {
-        Some(LasValue::Float(v)) => v.parse().unwrap(), //v.value,
+        Some(LasValue::Text(v)) => v.parse().unwrap(), //v.value,
         Some(LasValue::Int(v)) => *v as f64,
         _ => return None,
     };
@@ -110,7 +188,7 @@ pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Re
     let row_areas = root.split_evenly((num_rows, 1));
 
     let null_value = match las.well_information.null.value.as_ref() {
-        Some(LasValue::Float(v)) => v.parse().unwrap(), //v.value,
+        Some(LasValue::Text(v)) => v.parse().unwrap(), //v.value,
         Some(LasValue::Int(v)) => *v as f64,
         _ => unreachable!(),
     };

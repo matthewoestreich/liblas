@@ -15,8 +15,31 @@ use crate::{parse::*, tokenizer::LasTokenizer};
 use std::{
     fmt,
     fs::File,
-    io::{BufReader, Write},
+    io::{BufReader, Read, Write},
 };
+
+#[allow(dead_code)]
+pub(crate) fn parse_from_into<R, W>(reader: R, writer: W, output_format: OutputFormat) -> Result<(), ParseError>
+where
+    R: Read,
+    W: Write,
+{
+    let tokenizer = LasTokenizer::new(BufReader::new(reader));
+    let mut parser = LasParser::new(tokenizer);
+
+    match output_format {
+        OutputFormat::JSON => {
+            let mut sink = JsonSink::new(writer);
+            parser.parse_into(&mut sink)?;
+        }
+        OutputFormat::YAML | OutputFormat::YML => {
+            let mut sink = YamlSink::new(writer);
+            parser.parse_into(&mut sink)?;
+        }
+    }
+
+    Ok(())
+}
 
 /// Streams from parser directly into writer.
 pub fn parse_into<W>(las_file_path: &str, writer: W, output_format: OutputFormat) -> Result<(), ParseError>

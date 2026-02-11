@@ -169,8 +169,15 @@ impl WellInformation {
     }
 
     fn require_numeric(&self, kv: &DataLine, name: &str) -> Result<(), ParseError> {
-        match kv.value {
-            Some(LasValue::Int(_)) | Some(LasValue::Float(_)) => Ok(()),
+        match &kv.value {
+            Some(LasValue::Int(_)) => Ok(()),
+            Some(LasValue::Text(t)) => {
+                t.parse::<f64>().map_err(|_| ParseError::InvalidWellValue {
+                    mnemonic: name.to_string(),
+                    value: kv.value.clone(),
+                })?;
+                Ok(())
+            }
             _ => Err(ParseError::InvalidWellValue {
                 mnemonic: name.to_string(),
                 value: kv.value.clone(),

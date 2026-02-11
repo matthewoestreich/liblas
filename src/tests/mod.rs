@@ -1,6 +1,6 @@
 mod helpers;
 
-use std::{fs::File, io::BufReader};
+use std::{fs::File, io::BufReader, time::Instant};
 
 use crate::tokenizer::LasTokenizer;
 
@@ -75,6 +75,19 @@ fn test_json_deserialization() {
     let json_str = las_file.to_json_str().expect("json");
     let back_to_las_file = LasFile::try_from_json_str(&json_str).expect("deserialize");
     assert_eq!(las_file, back_to_las_file,);
+}
+
+#[test]
+#[ignore]
+// run with 'cargo nextest run --release test_large_las_file --lib --nocapture --run-ignored=only'
+fn test_large_las_file() {
+    let las_file_size_in_mb = 1000;
+    let large_las_cursor = generate_temp_las(las_file_size_in_mb).unwrap(); // Cursor<Vec<u8>>
+    let writer = std::io::sink();
+    let start = Instant::now();
+    super::parse_from_into(large_las_cursor, writer, OutputFormat::JSON).unwrap();
+    let end = start.elapsed();
+    println!("parsing large las file ({las_file_size_in_mb}mb) took : {end:?}");
 }
 
 #[test]
