@@ -73,7 +73,7 @@ pub fn parse(las_file_path: &str) -> Result<LasFile, ParseError> {
 
     let tokenizer = LasTokenizer::new(reader);
     let mut parser = LasParser::new(tokenizer);
-    let mut sink = ParsedLasFile::new();
+    let mut sink = AstSink::new();
 
     parser.parse_into(&mut sink)?;
     LasFile::try_from(sink)

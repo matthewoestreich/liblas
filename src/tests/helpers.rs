@@ -248,7 +248,7 @@ pub(crate) fn plot_las(las: &LasFile, output: &str, curves_per_row: usize) -> Re
 }
 
 // Helper - put at bottom to not take up space
-pub(crate) fn _print_parsed_las_file(parsed_file: &ParsedLasFile) {
+pub(crate) fn _print_parsed_las_file(parsed_file: &AstSink) {
     for section in &parsed_file.sections {
         println!("{:?}", section.header.kind);
         if let Some(comments) = section.comments.as_ref() {

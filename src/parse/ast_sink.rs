@@ -3,12 +3,13 @@ use crate::{
     parse::{Section, SectionEntry, Sink},
 };
 
-pub(crate) struct ParsedLasFile {
+/// Sink for parsing into "abstract syntax tree"
+pub(crate) struct AstSink {
     pub sections: Vec<Section>,
     current_section: Option<Section>,
 }
 
-impl ParsedLasFile {
+impl AstSink {
     pub fn new() -> Self {
         Self {
             sections: vec![],
@@ -17,7 +18,7 @@ impl ParsedLasFile {
     }
 }
 
-impl Sink for ParsedLasFile {
+impl Sink for AstSink {
     fn section_start(&mut self, section: Section) -> Result<(), ParseError> {
         self.current_section = Some(section);
         Ok(())

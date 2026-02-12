@@ -1,6 +1,6 @@
 use crate::{
     ParseError,
-    parse::{ParsedLasFile, SectionKind},
+    parse::{AstSink, SectionKind},
     sections::*,
 };
 use serde::{Deserialize, Serialize};
@@ -68,13 +68,13 @@ impl LasFile {
     }
 }
 
-impl TryFrom<ParsedLasFile> for LasFile {
+impl TryFrom<AstSink> for LasFile {
     type Error = ParseError;
 
-    fn try_from(file: ParsedLasFile) -> Result<Self, Self::Error> {
+    fn try_from(ast_sink: AstSink) -> Result<Self, Self::Error> {
         let mut las_file = LasFile::default();
 
-        for section in file.sections {
+        for section in ast_sink.sections {
             match section.header.kind {
                 SectionKind::Version => {
                     las_file.version_information = VersionInformation::try_from(section)?;
