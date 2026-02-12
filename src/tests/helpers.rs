@@ -6,10 +6,6 @@ use std::{
     ops::Range,
 };
 
-pub(crate) fn parse_las_file(path: &str) -> Result<LasFile, ParseError> {
-    super::parse(path)
-}
-
 pub(crate) fn generate_temp_las(size_in_mb: usize) -> std::io::Result<Cursor<Vec<u8>>> {
     let target_size_bytes = size_in_mb * 1024 * 1024; // 250 MB
 

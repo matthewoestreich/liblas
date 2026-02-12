@@ -1,5 +1,5 @@
 use crate::{
-    ParseError, Section, SectionEntry, SectionKind,
+    InvalidLineKind, ParseError, Section, SectionEntry, SectionKind,
     parse::{DataLine, LasValue, ParserState, REQUIRED_SECTIONS, Sink, str_contains},
     tokenizer::LasToken,
 };
@@ -111,7 +111,7 @@ where
         if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
             return Err(ParseError::AsciiDataContainsInvalidLine {
                 line_number,
-                line_kind: crate::InvalidLineKind::Comment,
+                line_kind: InvalidLineKind::Comment,
             });
         }
         self.comments.get_or_insert_with(Vec::new).push(text);
