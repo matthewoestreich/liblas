@@ -137,8 +137,13 @@ fn test_yaml_deserialization() {
 
 #[test]
 #[ignore]
+//
 // run with 'cargo nextest run --release test_large_las_file --lib --nocapture --run-ignored=only'
+//
+// We generate a .las file in RAM, of the specified size, and directly parse from there into an empty sink.
+//
 fn test_large_las_file() {
+    // CHANGE THIS TO MAKE THE LAS FILE BIGGER
     let las_file_size_in_mb = 50;
     let large_las_cursor = generate_temp_las(las_file_size_in_mb).unwrap();
     let writer = std::io::sink();

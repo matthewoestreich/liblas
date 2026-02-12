@@ -18,8 +18,9 @@ use std::{
     io::{BufReader, Read, Write},
 };
 
-#[allow(dead_code)]
-pub(crate) fn parse_from_into<R, W>(reader: R, writer: W, output_format: OutputFormat) -> Result<(), ParseError>
+/// Parse (stream) from a Read into a Write
+/// We wrap your [`reader`] in [`BufReader`]
+pub fn parse_from_into<R, W>(reader: R, writer: W, output_format: OutputFormat) -> Result<(), ParseError>
 where
     R: Read,
     W: Write,
@@ -41,7 +42,7 @@ where
     Ok(())
 }
 
-/// Streams from parser directly into writer.
+/// Streams from source LAS file directly into writer.
 pub fn parse_into<W>(las_file_path: &str, writer: W, output_format: OutputFormat) -> Result<(), ParseError>
 where
     W: Write,
