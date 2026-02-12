@@ -13,6 +13,9 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
         with:

@@ -1,12 +1,10 @@
 mod helpers;
 
-use std::{fs::File, io::BufReader, time::Instant};
-
-use crate::tokenizer::LasTokenizer;
-
 use super::*;
+use crate::tokenizer::LasTokenizer;
 use helpers::*;
 use plotters::prelude::*;
+use std::{fs::File, io::BufReader, time::Instant};
 
 // To export as YAML run:
 // `cargo run -- --las las_files/_good_sample_1.las --out exported_las/gooddd.yaml --out-type yaml --force`
