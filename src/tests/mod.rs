@@ -145,10 +145,10 @@ fn test_yaml_deserialization() {
 fn test_large_las_file() {
     // CHANGE THIS TO MAKE THE LAS FILE BIGGER
     let las_file_size_in_mb = 50;
-    let large_las_cursor = generate_temp_las(las_file_size_in_mb).unwrap();
+    let reader = generate_temp_las(las_file_size_in_mb).unwrap();
     let writer = std::io::sink();
     let start = Instant::now();
-    super::parse_from_into(large_las_cursor, writer, OutputFormat::JSON).unwrap();
+    parse_from_into(reader, writer, OutputFormat::JSON).unwrap();
     let end = start.elapsed();
     println!("parsing large las file ({las_file_size_in_mb}mb) took : {end:?}");
 }
