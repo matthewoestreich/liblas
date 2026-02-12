@@ -305,7 +305,6 @@ where
             return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
         }
 
-        //let values: Vec<String> = raw.split_whitespace().map(|s| s.to_string()).collect();
         let mut values = Vec::with_capacity(self.curve_mnemonics.len());
         for token in raw.split_ascii_whitespace() {
             values.push(token.to_string());
