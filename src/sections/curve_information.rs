@@ -3,12 +3,36 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+pub struct CurveInformationParams {
+    pub curves: Vec<DataLine>,
+    pub comments: Option<Vec<String>>,
+    pub header: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CurveInformation {
     pub curves: Vec<DataLine>,
     pub comments: Option<Vec<String>>,
     pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
+}
+
+impl CurveInformation {
+    pub fn new(params: CurveInformationParams) -> Self {
+        Self::from(params)
+    }
+}
+
+impl From<CurveInformationParams> for CurveInformation {
+    fn from(params: CurveInformationParams) -> Self {
+        Self {
+            curves: params.curves,
+            comments: params.comments,
+            header: params.header,
+            line_number: 0,
+        }
+    }
 }
 
 impl PartialEq for CurveInformation {

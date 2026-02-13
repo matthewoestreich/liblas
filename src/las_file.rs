@@ -43,6 +43,24 @@ impl fmt::Display for LasFile {
 }
 
 impl LasFile {
+    pub fn new(
+        version_info: VersionInformation,
+        well_info: WellInformation,
+        curve_info: CurveInformation,
+        ascii_log_data: AsciiLogData,
+        other_info: Option<OtherInformation>,
+        param_info: Option<ParameterInformation>,
+    ) -> Self {
+        Self {
+            version_information: version_info,
+            well_information: well_info,
+            curve_information: curve_info,
+            ascii_log_data,
+            other_information: other_info,
+            parameter_information: param_info,
+        }
+    }
+
     pub fn try_from_json_str(json_str: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(json_str)
     }

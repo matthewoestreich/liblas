@@ -3,6 +3,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+pub struct VersionInformationParams {
+    pub version: DataLine,
+    pub wrap: DataLine,
+    pub additional: Vec<DataLine>,
+    pub comments: Option<Vec<String>>,
+    pub header: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct VersionInformation {
     #[serde(rename = "VERS")]
     pub version: DataLine,
@@ -13,6 +22,25 @@ pub struct VersionInformation {
     pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
+}
+
+impl VersionInformation {
+    pub fn new(params: VersionInformationParams) -> Self {
+        Self::from(params)
+    }
+}
+
+impl From<VersionInformationParams> for VersionInformation {
+    fn from(params: VersionInformationParams) -> Self {
+        Self {
+            version: params.version,
+            wrap: params.wrap,
+            additional: params.additional,
+            comments: params.comments,
+            header: params.header,
+            line_number: 0,
+        }
+    }
 }
 
 impl PartialEq for VersionInformation {

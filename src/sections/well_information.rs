@@ -5,6 +5,29 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+pub struct WellInformationParams {
+    pub strt: DataLine,
+    pub stop: DataLine,
+    pub step: DataLine,
+    pub null: DataLine,
+    pub comp: Option<DataLine>,
+    pub well: Option<DataLine>,
+    pub fld: Option<DataLine>,
+    pub loc: Option<DataLine>,
+    pub prov: Option<DataLine>,
+    pub cnty: Option<DataLine>,
+    pub stat: Option<DataLine>,
+    pub ctry: Option<DataLine>,
+    pub srvc: Option<DataLine>,
+    pub date: Option<DataLine>,
+    pub uwi: Option<DataLine>,
+    pub api: Option<DataLine>,
+    pub additional: Vec<DataLine>,
+    pub comments: Option<Vec<String>>,
+    pub header: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WellInformation {
     #[serde(rename = "STRT")]
     pub strt: DataLine,
@@ -52,6 +75,39 @@ pub struct WellInformation {
 
     #[serde(skip)]
     pub(crate) line_number: usize,
+}
+
+impl WellInformation {
+    pub fn new(params: WellInformationParams) -> Self {
+        Self::from(params)
+    }
+}
+
+impl From<WellInformationParams> for WellInformation {
+    fn from(params: WellInformationParams) -> Self {
+        Self {
+            strt: params.strt,
+            stop: params.stop,
+            step: params.step,
+            null: params.null,
+            comp: params.comp,
+            well: params.well,
+            fld: params.fld,
+            loc: params.loc,
+            prov: params.prov,
+            cnty: params.cnty,
+            stat: params.stat,
+            ctry: params.ctry,
+            srvc: params.srvc,
+            date: params.date,
+            uwi: params.uwi,
+            api: params.api,
+            additional: params.additional,
+            comments: params.comments,
+            header: params.header,
+            line_number: 0,
+        }
+    }
 }
 
 impl PartialEq for WellInformation {

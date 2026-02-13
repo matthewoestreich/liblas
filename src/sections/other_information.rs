@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OtherInformationParams {
+    pub data: Vec<OtherInformationData>,
+    pub comments: Option<Vec<String>>,
+    pub header: String,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OtherInformationData {
     pub text: String,
     pub comments: Option<Vec<String>>,
@@ -22,6 +29,23 @@ pub struct OtherInformation {
     pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
+}
+
+impl OtherInformation {
+    pub fn new(params: OtherInformationParams) -> Self {
+        Self::from(params)
+    }
+}
+
+impl From<OtherInformationParams> for OtherInformation {
+    fn from(params: OtherInformationParams) -> Self {
+        Self {
+            data: params.data,
+            comments: params.comments,
+            header: params.header,
+            line_number: 0,
+        }
+    }
 }
 
 impl PartialEq for OtherInformation {

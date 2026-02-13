@@ -71,6 +71,12 @@ pub enum LasValue {
     Text(String),
 }
 
+impl LasValue {
+    pub fn new(value: &str) -> Option<Self> {
+        Self::parse(value)
+    }
+}
+
 impl fmt::Display for LasValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -3,6 +3,14 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+pub struct AsciiLogDataParams {
+    pub headers: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub comments: Option<Vec<String>>,
+    pub header: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AsciiLogData {
     pub headers: Vec<String>,
     pub rows: Vec<Vec<String>>,
@@ -10,6 +18,24 @@ pub struct AsciiLogData {
     pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
+}
+
+impl AsciiLogData {
+    pub fn new(params: AsciiLogDataParams) -> Self {
+        Self::from(params)
+    }
+}
+
+impl From<AsciiLogDataParams> for AsciiLogData {
+    fn from(params: AsciiLogDataParams) -> Self {
+        Self {
+            headers: params.headers,
+            rows: params.rows,
+            comments: params.comments,
+            header: params.header,
+            line_number: 0,
+        }
+    }
 }
 
 impl PartialEq for AsciiLogData {

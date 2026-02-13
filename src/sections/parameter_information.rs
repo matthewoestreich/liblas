@@ -3,12 +3,36 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ParameterInformationParams {
+    pub parameters: Vec<DataLine>,
+    pub comments: Option<Vec<String>>,
+    pub header: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ParameterInformation {
     pub parameters: Vec<DataLine>,
     pub comments: Option<Vec<String>>,
     pub header: String,
     #[serde(skip)]
     pub(crate) line_number: usize,
+}
+
+impl ParameterInformation {
+    pub fn new(params: ParameterInformationParams) -> Self {
+        Self::from(params)
+    }
+}
+
+impl From<ParameterInformationParams> for ParameterInformation {
+    fn from(params: ParameterInformationParams) -> Self {
+        Self {
+            parameters: params.parameters,
+            comments: params.comments,
+            header: params.header,
+            line_number: 0,
+        }
+    }
 }
 
 impl PartialEq for ParameterInformation {

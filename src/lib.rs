@@ -10,6 +10,7 @@ pub(crate) mod tokenizer;
 pub mod sections;
 pub use errors::*;
 pub use las_file::*;
+pub use parse::{DataLine, LasValue};
 
 use crate::{parse::*, tokenizer::LasTokenizer};
 use std::{
