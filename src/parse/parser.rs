@@ -122,7 +122,7 @@ where
         if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
             return Err(ParseError::AsciiDataContainsInvalidLine {
                 line_number,
-                line_kind: crate::InvalidLineKind::Empty,
+                line_kind: InvalidLineKind::Empty,
             });
         }
         Ok(())
