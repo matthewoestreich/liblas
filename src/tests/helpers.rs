@@ -7,8 +7,8 @@ use std::{
 };
 
 pub(crate) fn generate_temp_las(size_in_mb: usize) -> std::io::Result<Cursor<Vec<u8>>> {
-    let target_size_bytes = size_in_mb * 1024 * 1024; // 250 MB
-
+    let target_size_bytes = size_in_mb * 1024 * 1024;
+    println!("Starting : create {size_in_mb}mb las file in memory.");
     let buffer = Vec::with_capacity(target_size_bytes);
     let mut writer = Cursor::new(buffer);
 

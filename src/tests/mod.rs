@@ -136,13 +136,35 @@ fn test_yaml_deserialization() {
 }
 
 #[test]
+// run with 'cargo nextest run test_yaml_sink --lib --nocapture'
+fn test_yaml_sink() {
+    let file_name = "_good_sample_1.las";
+    let file_path = &format!("las_files/{}", file_name);
+    let stdout = std::io::stdout();
+    let writer = stdout.lock();
+    // This method uses the YamlSink
+    parse_into(file_path, writer, OutputFormat::YAML).unwrap();
+}
+
+#[test]
+// run with 'cargo nextest run test_json_sink --lib --nocapture'
+fn test_json_sink() {
+    let file_name = "_good_sample_1.las";
+    let file_path = &format!("las_files/{}", file_name);
+    let stdout = std::io::stdout();
+    let writer = stdout.lock();
+    // This method uses the JsonSink
+    parse_into(file_path, writer, OutputFormat::JSON).unwrap();
+}
+
+#[test]
 #[ignore]
 //
-// run with 'cargo nextest run --release test_large_las_file --lib --nocapture --run-ignored=only'
+// run with 'cargo nextest run --release test_large_las_file_json --lib --nocapture --run-ignored=only'
 //
-// We generate a .las file in RAM, of the specified size, and directly parse from there into an empty sink.
+// [JSON] We generate a .las file in RAM, of the specified size, and directly parse from there into an empty sink.
 //
-fn test_large_las_file() {
+fn test_large_las_file_json() {
     // CHANGE THIS TO MAKE THE LAS FILE BIGGER
     let las_file_size_in_mb = 50;
     let reader = generate_temp_las(las_file_size_in_mb).unwrap();
@@ -150,23 +172,42 @@ fn test_large_las_file() {
     let start = Instant::now();
     parse_from_into(reader, writer, OutputFormat::JSON).unwrap();
     let end = start.elapsed();
-    println!("parsing large las file ({las_file_size_in_mb}mb) took : {end:?}");
+    println!("parsing large las file ({las_file_size_in_mb}mb) to json took : {end:?}");
 }
 
 #[test]
 #[ignore]
-// run with 'cargo nextest run test_export_good_yaml --lib --nocapture --run-ignored=only'
-fn test_export_good_yaml() {
+//
+// run with 'cargo nextest run --release test_large_las_file_yaml --lib --nocapture --run-ignored=only'
+//
+// [YAML] We generate a .las file in RAM, of the specified size, and directly parse from there into an empty sink.
+//
+fn test_large_las_file_yaml() {
+    // CHANGE THIS TO MAKE THE LAS FILE BIGGER
+    let las_file_size_in_mb = 50;
+    let reader = generate_temp_las(las_file_size_in_mb).unwrap();
+    let writer = std::io::sink();
+    let start = Instant::now();
+    parse_from_into(reader, writer, OutputFormat::YAML).unwrap();
+    let end = start.elapsed();
+    println!("parsing large las file ({las_file_size_in_mb}mb) to yaml took : {end:?}");
+}
+
+#[test]
+#[ignore]
+// run with 'cargo nextest run test_las_ast_to_yaml_str --lib --nocapture --run-ignored=only'
+fn test_las_ast_to_yaml_str() {
     let file_name = "_good_sample_1.las";
     let las_file_path = format!("las_files/{}", file_name);
     let mut las_file = parse(&las_file_path).unwrap();
     println!("{}", las_file.to_yaml_str().unwrap());
+    println!("\n\nDONE PARSNG AS YAML STR\n\n");
 }
 
 #[test]
 #[ignore]
-// run with 'cargo nextest run test_export_good_json --lib --nocapture --run-ignored=only'
-fn test_export_good_json() {
+// run with 'cargo nextest run test_las_ast_to_json_str --lib --nocapture --run-ignored=only'
+fn test_las_ast_to_json_str() {
     let file_name = "_good_sample_1.las";
     let las_file_path = format!("las_files/{}", file_name);
     let mut las_file = parse(&las_file_path).unwrap();

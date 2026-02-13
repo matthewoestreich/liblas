@@ -77,7 +77,16 @@ where
             write!(self.writer, ",")?;
         }
         self.is_first_ascii_row = false;
-        serde_json::to_writer(&mut self.writer, row).map_err(|e| ParseError::Error { message: e.to_string() })?;
+
+        write!(self.writer, "[")?;
+        for (i, r) in row.iter().enumerate() {
+            if i != 0 {
+                write!(self.writer, ",")?;
+            }
+            write!(self.writer, "\"{}\"", r)?;
+        }
+        write!(self.writer, "]")?;
+
         Ok(())
     }
 

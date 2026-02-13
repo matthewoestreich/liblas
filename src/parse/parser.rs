@@ -1,12 +1,9 @@
 use crate::{
     InvalidLineKind, ParseError, Section, SectionEntry, SectionKind,
-    parse::{DataLine, LasValue, ParserState, REQUIRED_SECTIONS, Sink, str_contains},
+    parse::{DataLine, LasValue, MAX_NUM_SECTIONS, ParserState, REQUIRED_SECTIONS, Sink, str_contains},
     tokenizer::LasToken,
 };
-use std::{
-    collections::{HashMap, hash_map::Entry},
-    io,
-};
+use std::io;
 
 pub(crate) struct LasParser<I>
 where
@@ -15,7 +12,8 @@ where
     tokens: I,
     current_section: Option<SectionKind>,
     state: ParserState,
-    parsed_sections: HashMap<SectionKind, usize>,
+    // Store each section as tuple. (SectionKind, section_line_number)
+    parsed_sections: Vec<(SectionKind, usize)>,
     curve_mnemonics: Vec<String>,
     comments: Option<Vec<String>>,
 }
@@ -29,8 +27,10 @@ where
             tokens: iter,
             current_section: None,
             state: ParserState::Start,
-            parsed_sections: HashMap::new(),
-            curve_mnemonics: vec![],
+            parsed_sections: Vec::with_capacity(MAX_NUM_SECTIONS),
+            // The amount of mnemonics a las file contains is arbitrary, but usually
+            // 100 elemens is enough to aid in performance.
+            curve_mnemonics: Vec::with_capacity(100),
             comments: None,
         }
     }
@@ -102,21 +102,22 @@ where
             _ => self.parse_data_line(raw, line_number)?,
         };
 
-        match &entry {
-            SectionEntry::AsciiLogData(row) => sink.ascii_row(row)?,
+        match entry {
+            SectionEntry::AsciiLogData(ref row) => sink.ascii_row(row)?,
             SectionEntry::Raw { .. } => sink.entry(entry)?,
-            SectionEntry::Delimited(data_line) => {
-                if self.current_section.is_some_and(|s| s == SectionKind::Curve) {
+            SectionEntry::Delimited(ref data_line) => {
+                if self.current_section == Some(SectionKind::Curve) {
                     self.curve_mnemonics.push(data_line.mnemonic.clone());
                 }
                 sink.entry(entry)?;
             }
         }
+
         Ok(())
     }
 
     fn handle_comment(&mut self, text: String, line_number: usize) -> Result<(), ParseError> {
-        if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
+        if self.current_section == Some(SectionKind::AsciiLogData) {
             return Err(ParseError::AsciiDataContainsInvalidLine {
                 line_number,
                 line_kind: InvalidLineKind::Comment,
@@ -127,7 +128,7 @@ where
     }
 
     fn handle_blank(&mut self, line_number: usize) -> Result<(), ParseError> {
-        if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
+        if self.current_section == Some(SectionKind::AsciiLogData) {
             return Err(ParseError::AsciiDataContainsInvalidLine {
                 line_number,
                 line_kind: InvalidLineKind::Empty,
@@ -156,22 +157,21 @@ where
     }
 
     fn check_duplicate_section(&mut self, kind: SectionKind, line_number: usize) -> Result<(), ParseError> {
-        match self.parsed_sections.entry(kind) {
-            Entry::Occupied(e) => {
-                return Err(ParseError::DuplicateSection {
-                    section: kind,
-                    line_number,
-                    duplicate_line_number: *e.get(),
-                });
-            }
-            Entry::Vacant(e) => e.insert(line_number),
-        };
+        if let Some(found) = self.parsed_sections.iter().find(|e| e.0 == kind) {
+            return Err(ParseError::DuplicateSection {
+                section: kind,
+                line_number,
+                duplicate_line_number: found.1,
+            });
+        }
+        self.parsed_sections.push((kind, line_number));
         Ok(())
     }
 
     fn check_for_required_sections(&self) -> Result<(), ParseError> {
+        let mut parsed_sections_iter = self.parsed_sections.iter();
         for required_section in REQUIRED_SECTIONS.iter() {
-            if !self.parsed_sections.contains_key(required_section) {
+            if !parsed_sections_iter.any(|e| e.0 == *required_section) {
                 return Err(ParseError::MissingSection {
                     section: *required_section,
                 });

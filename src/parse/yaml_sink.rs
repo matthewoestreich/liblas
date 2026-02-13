@@ -34,12 +34,15 @@ where
     {
         writeln!(self.writer, "{section_name}:")?;
 
-        let mut buf = Vec::new();
+        let mut buf = Vec::with_capacity(100);
         serde_yaml_ng::to_writer(&mut buf, section).map_err(|e| ParseError::Error { message: e.to_string() })?;
 
-        let s = String::from_utf8(buf).map_err(|e| ParseError::Error { message: e.to_string() })?;
-        for line in s.lines() {
-            writeln!(self.writer, "  {line}")?;
+        for line in buf.split(|&b| b == b'\n') {
+            if !line.is_empty() {
+                self.writer.write_all(b"  ")?;
+                self.writer.write_all(line)?;
+                writeln!(self.writer)?;
+            }
         }
 
         Ok(())
@@ -80,11 +83,8 @@ where
                         .to_string(),
             });
         }
-
-        writeln!(self.writer, "  - - '{}'", row[0])?;
-        for row in row[1..].iter() {
-            writeln!(self.writer, "    - '{}'", row)?;
-        }
+        writeln!(self.writer, "  -")?;
+        row.iter().try_for_each(|r| writeln!(self.writer, "    - '{}'", r))?;
         Ok(())
     }
 

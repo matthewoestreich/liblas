@@ -12,6 +12,9 @@ use crate::{ParseError, write_comments};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+// The max number of sections a .las file can have.
+const MAX_NUM_SECTIONS: usize = 6;
+
 const REQUIRED_SECTIONS: [SectionKind; 4] = [
     SectionKind::Version,
     SectionKind::Well,
