@@ -93,7 +93,15 @@ where
     where
         S: Sink,
     {
-        let entry = self.parse_data_line(raw, line_number)?;
+        let entry = match self.current_section.as_ref() {
+            Some(SectionKind::Other) => SectionEntry::Raw {
+                text: raw.trim().to_string(),
+                comments: self.comments.take(),
+            },
+            Some(SectionKind::AsciiLogData) => self.parse_ascii_data_line(raw, line_number)?,
+            _ => self.parse_data_line(raw, line_number)?,
+        };
+
         match &entry {
             SectionEntry::AsciiLogData(row) => sink.ascii_row(row)?,
             SectionEntry::Raw { .. } => sink.entry(entry)?,
@@ -188,17 +196,6 @@ where
     }
 
     fn parse_data_line(&mut self, raw: &str, line_number: usize) -> Result<SectionEntry, ParseError> {
-        if self.current_section.is_some_and(|s| s == SectionKind::AsciiLogData) {
-            return self.parse_ascii_data_line(raw, line_number);
-        }
-
-        if self.current_section.is_some_and(|s| s == SectionKind::Other) {
-            return Ok(SectionEntry::Raw {
-                text: raw.trim().to_string(),
-                comments: self.comments.take(),
-            });
-        }
-
         // ############################
         // -- LAS DATA LINE LAYOUT --
         // ############################
