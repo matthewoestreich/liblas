@@ -1,6 +1,9 @@
 use crate::{
     InvalidLineKind, ParseError, Section, SectionEntry, SectionKind,
-    parse::{DataLine, LasValue, MAX_NUM_SECTIONS, ParserState, REQUIRED_SECTIONS, Sink, str_contains},
+    parse::{
+        DataLine, LasValue, LineDelimiters, REQUIRED_SECTIONS, Sink, context::ParserContext, state::ParserState,
+        str_contains,
+    },
     tokenizer::LasToken,
 };
 use std::io;
@@ -10,12 +13,7 @@ where
     I: Iterator<Item = Result<LasToken, io::Error>>,
 {
     tokens: I,
-    current_section: Option<SectionKind>,
-    state: ParserState,
-    // Store each section as tuple. (SectionKind, section_line_number)
-    parsed_sections: Vec<(SectionKind, usize)>,
-    curve_mnemonics: Vec<String>,
-    comments: Option<Vec<String>>,
+    ctx: ParserContext,
 }
 
 impl<I> LasParser<I>
@@ -25,13 +23,7 @@ where
     pub fn new(iter: I) -> Self {
         Self {
             tokens: iter,
-            current_section: None,
-            state: ParserState::Start,
-            parsed_sections: Vec::with_capacity(MAX_NUM_SECTIONS),
-            // The amount of mnemonics a las file contains is arbitrary, but usually
-            // 100 elemens is enough to aid in performance.
-            curve_mnemonics: Vec::with_capacity(100),
-            comments: None,
+            ctx: ParserContext::default(),
         }
     }
 
@@ -44,14 +36,6 @@ where
             self.handle_token(token, sink)?;
         }
         self.finish(sink)
-    }
-
-    fn next_token(&mut self) -> Result<Option<LasToken>, ParseError> {
-        match self.tokens.next() {
-            Some(Ok(tok)) => Ok(Some(tok)),
-            Some(Err(e)) => Err(ParseError::Io(e)),
-            None => Ok(None),
-        }
     }
 
     fn handle_token<S>(&mut self, token: LasToken, sink: &mut S) -> Result<(), ParseError>
@@ -71,34 +55,70 @@ where
         S: Sink,
     {
         let mut next_section = Section::new(name, line_number);
-        next_section.comments = self.comments.take();
-        let kind = next_section.header.kind;
+        next_section.comments = self.ctx.comments.take();
 
-        self.validate_section_order(kind, line_number)?;
-        self.update_parser_state(kind);
-        self.check_duplicate_section(kind, line_number)?;
+        self.enter_section(&next_section.header.kind, line_number)?;
 
-        if kind == SectionKind::AsciiLogData {
-            next_section.ascii_headers = Some(self.curve_mnemonics.clone());
+        if next_section.header.kind == SectionKind::AsciiLogData {
+            next_section.ascii_headers = Some(self.ctx.curve_mnemonics.clone());
         }
 
         sink.section_end()?;
         sink.section_start(next_section)?;
-        self.current_section = Some(kind);
-
         Ok(())
+    }
+
+    fn enter_section(&mut self, section: &SectionKind, line_number: usize) -> Result<(), ParseError> {
+        self.validate_transition(section, line_number)?;
+        self.validate_duplicates(section, line_number)?;
+        self.ctx.sections.insert(*section, line_number);
+        self.ctx.state = ParserState::In(*section);
+        Ok(())
+    }
+
+    fn validate_transition(&mut self, section: &SectionKind, line_number: usize) -> Result<(), ParseError> {
+        match (&self.ctx.state, section) {
+            // Version must be first
+            (ParserState::Start, SectionKind::Version) => Ok(()),
+            // From Start to anything other than Version is illegal.
+            (ParserState::Start, _) => Err(ParseError::VersionInformationNotFirst { line_number }),
+            // Going from In anything to Version section means Version wasn't first, or is duplicate..
+            (ParserState::In(_), SectionKind::Version) => {
+                if let Some(v) = self.ctx.sections.get(&SectionKind::Version) {
+                    return Err(ParseError::DuplicateSection {
+                        section: *section,
+                        line_number,
+                        duplicate_line_number: *v,
+                    });
+                }
+                Err(ParseError::VersionInformationNotFirst { line_number })
+            }
+            // Transitioning from Ascii section to anything means Ascii wasn't last.
+            (ParserState::In(SectionKind::AsciiLogData), _) => {
+                Err(ParseError::AsciiLogDataSectionNotLast { line_number })
+            }
+            (ParserState::In(_), _) => Ok(()),
+        }
+    }
+
+    fn next_token(&mut self) -> Result<Option<LasToken>, ParseError> {
+        match self.tokens.next() {
+            Some(Ok(tok)) => Ok(Some(tok)),
+            Some(Err(e)) => Err(ParseError::Io(e)),
+            None => Ok(None),
+        }
     }
 
     fn handle_data_line<S>(&mut self, raw: &str, line_number: usize, sink: &mut S) -> Result<(), ParseError>
     where
         S: Sink,
     {
-        let entry = match self.current_section.as_ref() {
-            Some(SectionKind::Other) => SectionEntry::Raw {
+        let entry = match self.ctx.state {
+            ParserState::In(SectionKind::Other) => SectionEntry::Raw {
                 text: raw.trim().to_string(),
-                comments: self.comments.take(),
+                comments: self.ctx.comments.take(),
             },
-            Some(SectionKind::AsciiLogData) => self.parse_ascii_data_line(raw, line_number)?,
+            ParserState::In(SectionKind::AsciiLogData) => self.parse_ascii_data_line(raw, line_number)?,
             _ => self.parse_data_line(raw, line_number)?,
         };
 
@@ -106,8 +126,8 @@ where
             SectionEntry::AsciiLogData(ref row) => sink.ascii_row(row)?,
             SectionEntry::Raw { .. } => sink.entry(entry)?,
             SectionEntry::Delimited(ref data_line) => {
-                if self.current_section == Some(SectionKind::Curve) {
-                    self.curve_mnemonics.push(data_line.mnemonic.clone());
+                if self.ctx.state == ParserState::In(SectionKind::Curve) {
+                    self.ctx.curve_mnemonics.push(data_line.mnemonic.clone());
                 }
                 sink.entry(entry)?;
             }
@@ -117,18 +137,18 @@ where
     }
 
     fn handle_comment(&mut self, text: String, line_number: usize) -> Result<(), ParseError> {
-        if self.current_section == Some(SectionKind::AsciiLogData) {
+        if self.ctx.state == ParserState::In(SectionKind::AsciiLogData) {
             return Err(ParseError::AsciiDataContainsInvalidLine {
                 line_number,
                 line_kind: InvalidLineKind::Comment,
             });
         }
-        self.comments.get_or_insert_with(Vec::new).push(text);
+        self.ctx.comments.push(text);
         Ok(())
     }
 
     fn handle_blank(&mut self, line_number: usize) -> Result<(), ParseError> {
-        if self.current_section == Some(SectionKind::AsciiLogData) {
+        if self.ctx.state == ParserState::In(SectionKind::AsciiLogData) {
             return Err(ParseError::AsciiDataContainsInvalidLine {
                 line_number,
                 line_kind: InvalidLineKind::Empty,
@@ -137,41 +157,20 @@ where
         Ok(())
     }
 
-    fn validate_section_order(&self, kind: SectionKind, line_number: usize) -> Result<(), ParseError> {
-        // Version information section must be first!
-        if self.state == ParserState::Start && kind != SectionKind::Version {
-            return Err(ParseError::VersionInformationNotFirst { line_number });
-        }
-        // ASCII log data section must be last
-        if self.state == ParserState::End && kind != SectionKind::AsciiLogData {
-            return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
-        }
-        Ok(())
-    }
-
-    fn update_parser_state(&mut self, kind: SectionKind) {
-        self.state = match kind {
-            SectionKind::AsciiLogData => ParserState::End,
-            _ => ParserState::Working,
-        };
-    }
-
-    fn check_duplicate_section(&mut self, kind: SectionKind, line_number: usize) -> Result<(), ParseError> {
-        if let Some(found) = self.parsed_sections.iter().find(|e| e.0 == kind) {
+    fn validate_duplicates(&mut self, kind: &SectionKind, line_number: usize) -> Result<(), ParseError> {
+        if let Some(&duplicate_line_number) = self.ctx.sections.get(kind) {
             return Err(ParseError::DuplicateSection {
-                section: kind,
+                section: *kind,
                 line_number,
-                duplicate_line_number: found.1,
+                duplicate_line_number,
             });
         }
-        self.parsed_sections.push((kind, line_number));
         Ok(())
     }
 
     fn check_for_required_sections(&self) -> Result<(), ParseError> {
-        let mut parsed_sections_iter = self.parsed_sections.iter();
         for required_section in REQUIRED_SECTIONS.iter() {
-            if !parsed_sections_iter.any(|e| e.0 == *required_section) {
+            if !self.ctx.sections.contains_key(required_section) {
                 return Err(ParseError::MissingSection {
                     section: *required_section,
                 });
@@ -187,7 +186,7 @@ where
         self.check_for_required_sections()?;
         self.validate_curves()?;
 
-        if self.current_section.take().is_some() {
+        if let ParserState::In(_) = self.ctx.state {
             sink.section_end()?;
         }
 
@@ -225,40 +224,20 @@ where
         // "description or definition of the mnemonic. It is always located to the right
         // of the last colon. The length of the line is no longer limited."
 
-        let mut space: Option<usize> = None;
-        let mut period: Option<usize> = None;
-        let mut colon: Option<usize> = None;
-
-        for (i, bytes) in raw.bytes().enumerate() {
-            match bytes as char {
-                // We only need to make note of the index for the first space in a line that comes AFTER the first period in a line.
-                ' ' if space.is_none() && period.is_some() => {
-                    space = Some(i);
-                }
-                // Only record index of first period in a line.
-                '.' if period.is_none() => {
-                    period = Some(i);
-                }
-                // We need to use the last colon on a line as a delimiter. Therefore, update the colon index each time we see one.
-                ':' => {
-                    colon = Some(i);
-                }
-                _ => {}
-            };
-        }
+        let ld = LineDelimiters::find_in(raw);
 
         let mut mnemonic: Option<String> = None;
         let mut unit: Option<String> = None;
         let mut value: Option<LasValue> = None;
         let mut description: Option<String> = None;
 
-        if let Some(period_index) = period {
+        if let Some(period_index) = ld.period {
             let raw_mnemonic = raw[..period_index].trim().to_string();
             Self::validate_mnemonic(&raw_mnemonic, raw, line_number)?;
             mnemonic = Some(raw_mnemonic);
 
-            if let Some(space_index) = space
-                && let Some(colon_index) = colon
+            if let Some(space_index) = ld.space
+                && let Some(colon_index) = ld.colon
             {
                 let raw_unit = raw[period_index..space_index].trim_start_matches('.').to_string();
                 Self::validate_unit(&raw_unit, raw, line_number)?;
@@ -276,13 +255,13 @@ where
             }
         }
 
-        if let Some(colon_index) = colon {
+        if let Some(colon_index) = ld.colon {
             // Everything from the last recorded colon index until end of line is description.
             description = Some(raw[colon_index + 1..raw.len()].trim().to_string());
         }
 
         Ok(SectionEntry::Delimited(DataLine {
-            comments: self.comments.take(),
+            comments: self.ctx.comments.take(),
             value,
             unit: unit.filter(|u| !u.is_empty()),
             description: description.filter(|d| !d.is_empty()),
@@ -298,19 +277,19 @@ where
         // If we are missing headers here it means we haven't parsed the Curve section yet.
         // Since ASCII section has to be the last section (per CWLS v2.0) it means we have
         // and invalid LAS file.
-        if self.curve_mnemonics.is_empty() {
+        if self.ctx.curve_mnemonics.is_empty() {
             return Err(ParseError::AsciiLogDataSectionNotLast { line_number });
         }
 
-        let mut values = Vec::with_capacity(self.curve_mnemonics.len());
+        let mut values = Vec::with_capacity(self.ctx.curve_mnemonics.len());
         for token in raw.split_ascii_whitespace() {
             values.push(token.to_string());
         }
 
-        if values.len() != self.curve_mnemonics.len() {
+        if values.len() != self.ctx.curve_mnemonics.len() {
             return Err(ParseError::AsciiColumnsMismatch {
                 line_number,
-                num_cols_in_headers: self.curve_mnemonics.len(),
+                num_cols_in_headers: self.ctx.curve_mnemonics.len(),
                 num_cols_in_row: values.len(),
             });
         }
@@ -318,7 +297,7 @@ where
         Ok(SectionEntry::AsciiLogData(values))
     }
 
-    fn validate_mnemonic(raw_mnemonic: &str, raw: &str, line_number: usize) -> Result<(), ParseError> {
+    pub(crate) fn validate_mnemonic(raw_mnemonic: &str, raw: &str, line_number: usize) -> Result<(), ParseError> {
         if raw_mnemonic.is_empty() {
             return Err(ParseError::MissingRequiredKey {
                 key: "mnemonic".to_string(),
@@ -338,7 +317,7 @@ where
         Ok(())
     }
 
-    fn validate_unit(raw_unit: &str, raw: &str, line_number: usize) -> Result<(), ParseError> {
+    pub(crate) fn validate_unit(raw_unit: &str, raw: &str, line_number: usize) -> Result<(), ParseError> {
         if raw_unit.starts_with(" ") {
             return Err(ParseError::DelimetedValueContainsInvalidChars {
                 key: "units".to_string(),
@@ -367,7 +346,7 @@ where
             "INDEX".to_string(),
         ];
 
-        if self.curve_mnemonics.is_empty() {
+        if self.ctx.curve_mnemonics.is_empty() {
             return Err(ParseError::SectionMissingRequiredData {
                 section: SectionKind::Curve,
                 one_of: Vec::from(allowed_first_curves),
@@ -375,9 +354,9 @@ where
         }
 
         // The first data line in the Curve section must be one of "DEPT", "DEPTH", "TIME" or "INDEX".
-        if !allowed_first_curves.contains(&self.curve_mnemonics[0]) {
+        if !allowed_first_curves.contains(&self.ctx.curve_mnemonics[0]) {
             return Err(ParseError::DisallowedFirstCurve {
-                got: self.curve_mnemonics[0].clone(),
+                got: self.ctx.curve_mnemonics[0].clone(),
                 expected_one_of: Vec::from(allowed_first_curves),
             });
         }

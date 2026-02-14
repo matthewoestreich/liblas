@@ -1,6 +1,8 @@
 mod ast_sink;
+mod context;
 mod json_sink;
 mod parser;
+mod state;
 mod yaml_sink;
 
 pub(crate) use ast_sink::*;
@@ -11,9 +13,6 @@ pub(crate) use yaml_sink::*;
 use crate::{ParseError, write_comments};
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
-// The max number of sections a .las file can have.
-const MAX_NUM_SECTIONS: usize = 6;
 
 const REQUIRED_SECTIONS: [SectionKind; 4] = [
     SectionKind::Version,
@@ -219,13 +218,36 @@ impl SectionHeader {
 }
 
 // ================================================================================================
-// ------------------------ ParserState -----------------------------------------------------------
+// ------------------------ LineDelimiters --------------------------------------------------------
 // ================================================================================================
 
-#[derive(Debug, PartialEq, Eq)]
-enum ParserState {
-    Start,
-    Working,
-    // We set to end before parsing ASCII log data. Since it HAS to be the last section in a las file.
-    End,
+#[derive(Default)]
+pub(crate) struct LineDelimiters {
+    space: Option<usize>,
+    period: Option<usize>,
+    colon: Option<usize>,
+}
+
+impl LineDelimiters {
+    pub(crate) fn find_in(raw: &str) -> Self {
+        let mut this = Self::default();
+        for (i, bytes) in raw.bytes().enumerate() {
+            match bytes as char {
+                // We only need to make note of the index for the first space in a line that comes AFTER the first period in a line.
+                ' ' if this.space.is_none() && this.period.is_some() => {
+                    this.space = Some(i);
+                }
+                // Only record index of first period in a line.
+                '.' if this.period.is_none() => {
+                    this.period = Some(i);
+                }
+                // We need to use the last colon on a line as a delimiter. Therefore, update the colon index each time we see one.
+                ':' => {
+                    this.colon = Some(i);
+                }
+                _ => {}
+            };
+        }
+        this
+    }
 }
